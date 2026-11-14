@@ -57,7 +57,7 @@ export default function CompareView() {
     const orderLegs = [];
     for (let i = 1; i < ordered.length; i++) {
       setBusy(t('cmp.busyA', { n: i, total: ordered.length - 1 }));
-      const r = await api.route({ from: ordered[i - 1].pos, to: ordered[i].pos, preset: 'safe', agent: 'rover' });
+      const r = await api.route({ from: ordered[i - 1].pos, to: ordered[i].pos, preset: 'safe', legacy: true });
       if (!(r.ok && r.data.status === 'ok')) {
         setBusy('');
         return setError(`${ordered[i].name}: ${r.ok ? r.data.reason : r.error.error}`);

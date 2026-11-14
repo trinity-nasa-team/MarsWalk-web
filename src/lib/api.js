@@ -46,22 +46,27 @@ export const api = {
    * Ruta de un tramo: from/to/habitat como [lon, lat]. En Jezero usa el planificador v4 (arena de Séítah,
    * pendiente fina, peligros del robot como celdas verificadas); fuera de Jezero, el A* legado con walkback.
    */
-  route: ({ from, to, habitat, preset, hazards = [], maxRadius, region = REGION, agent = 'astronaut' }) =>
-    region === REGION
-      ? post(`/regions/${region}/eva/replan-leg`, {
-          start: ll(from),
-          goal: ll(to),
-          preset,
-          agent,
-          obstacles: hazards.map((h) => ({ ...ll(h.pos), radius_m: h.radius_m })),
-        })
-      : post(`/regions/${region}/route`, {
+  route: async ({ from, to, habitat, preset, hazards = [], maxRadius, region = REGION, agent = 'astronaut', legacy = false }) => {
+    const legacyRoute = () =>
+      post(`/regions/${region}/route`, {
+        start: ll(from),
+        goal: ll(to),
+        preset,
+        ...(habitat ? { habitat: ll(habitat), max_radius_m: maxRadius } : {}),
+        obstacles: hazards.map((h) => ({ ...ll(h.pos), radius_m: h.radius_m })),
+      });
+    if (region !== REGION || legacy) return legacyRoute();
+    const res = await post(`/regions/${region}/eva/replan-leg`, {
       start: ll(from),
       goal: ll(to),
       preset,
-      ...(habitat ? { habitat: ll(habitat), max_radius_m: maxRadius } : {}),
+      agent,
       obstacles: hazards.map((h) => ({ ...ll(h.pos), radius_m: h.radius_m })),
-    }),
+    });
+    // Fuera de la malla del planificador v4 (o tramo demasiado largo): A* legado de la región.
+    if (!res.ok && ['out_of_planner_grid', 'leg_too_long'].includes(res.error?.code)) return legacyRoute();
+    return res;
+  },
   /** Misiones NSGA-II (004): orden de visita óptimo de varios sitios desde `habitat`. */
   missions: ({ habitat, poiIds }) =>
     post(`/regions/${REGION}/missions`, {
