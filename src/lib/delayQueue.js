@@ -1,7 +1,7 @@
 // Cola «guarda y reenvía» hacia la Tierra (imita DTN). Todo en tiempo de misión (s).
-// Tiempo luz Tierra–Marte: ~4 a ~22 min según la distancia entre planetas (propuesta del equipo).
+// Tiempo luz Tierra–Marte (solo ida): ~4 a ~24 min según la distancia entre planetas (NASA Goddard).
 export const EARTH_DELAY_MIN = 4;
-export const EARTH_DELAY_MAX = 22;
+export const EARTH_DELAY_MAX = 24;
 
 /** Separa los eventos en «en tránsito» y «recibidos» para un retraso dado (min). */
 export function partitionEarth(events, now_s, delay_min) {

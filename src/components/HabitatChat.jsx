@@ -41,7 +41,20 @@ export default function HabitatChat({ t, lang, telemetry, onCommand, onReply }) 
       setMsgs((list) => [...list, { role: 'assistant', content: r.data.reply }].slice(-MAX_SHOWN));
       onReply?.(r.data.reply);
     }
-    else setErr(r.error.code === 'assistant_unavailable' ? t('chat.off') : r.error.code === 'rate_limited' ? t('chat.slow') : t('chat.fail'));
+    else if (r.error.code === 'assistant_unavailable') {
+      // Sin IA configurada: responder con la telemetría local en vez de mostrar un error interno al jurado.
+      const tl = telemetry || {};
+      const pctTxt = (v) => (v == null ? '—' : `${Math.round(v)} %`);
+      const reply = t('chat.local', {
+        o2: pctTxt(tl.o2_pct),
+        suit: pctTxt(tl.suit_pct),
+        home: tl.to_habitat_m == null ? '—' : `${(tl.to_habitat_m / 1000).toFixed(2)} km`,
+        slope: tl.slope_deg == null ? '—' : `${tl.slope_deg.toFixed(0)}°`,
+        hz: tl.hazards ?? 0,
+      });
+      setMsgs((list) => [...list, { role: 'assistant', content: reply }].slice(-MAX_SHOWN));
+      onReply?.(reply);
+    } else setErr(r.error.code === 'rate_limited' ? t('chat.slow') : t('chat.fail'));
   };
 
   useEffect(() => () => recRef.current?.abort(), []);

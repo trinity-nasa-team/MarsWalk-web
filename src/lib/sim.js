@@ -47,8 +47,8 @@ function checkVitals(state) {
   return next;
 }
 
-/** Regreso a pie de ~10 km — NASA DRA 5.0 (verificado en la propuesta del equipo). */
-export const WALKBACK_M = 10_000;
+/** Regreso a pie de EMERGENCIA de ~15 km — NASA DRA 5.0 §2.1 (NASA-SP-2009-566, p. 6). Una EVA planeada es de 2–5 km. */
+export const WALKBACK_M = 15_000;
 /** Velocidad de marcha: SUPUESTO DE DEMO (no hay modelo metabólico todavía). */
 export const WALK_KMH = 3;
 const WALK_MS = (WALK_KMH * 1000) / 3600;
