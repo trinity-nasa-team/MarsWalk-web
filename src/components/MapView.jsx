@@ -23,8 +23,8 @@ const GLOBAL = [
 
 const EMPTY = { type: 'FeatureCollection', features: [] };
 let introDone = false; // el vuelo de entrada solo la primera vez por sesión (017)
-const RASTERS = ['hillshade', 'slope', 'traversability'];
-const RASTER_OPACITY = { hillshade: 1, slope: 0.6, traversability: 0.45 };
+const RASTERS = ['hillshade', 'slope', 'traversability', 'sand'];
+const RASTER_OPACITY = { hillshade: 1, slope: 0.6, traversability: 0.45, sand: 1 };
 const FADE = { duration: 600, delay: 0 }; // [CoM] .6s
 const C = {
   orbit: 'rgb(150,210,255)',

@@ -77,6 +77,12 @@ export function routeFromApi(r) {
     profile: r.profile || [],
     explanations: r.explanations || [],
     origin: 'orbit', // azul: calculada solo con datos orbitales
+    // Planificador v4 (Jezero): procedencia por tramo, metros sobre arena y energía/O2 del astronauta.
+    planner: r.planner || 'legacy',
+    segments: r.segments || [],
+    sand_m: r.sand_m ?? null,
+    energy_wh: r.energy_wh ?? null,
+    o2_l: r.o2_l ?? null,
   };
 }
 

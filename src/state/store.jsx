@@ -130,7 +130,7 @@ const RegionCtx = createContext(null);
 export function RegionProvider({ children }) {
   const [region, setRegion] = useState({ status: 'loading' });
   useEffect(() => {
-    Promise.all([api.regions(), api.layers(), api.pois(), api.traverse(), api.ortho()]).then(([reg, layers, pois, trav, ortho]) => {
+    Promise.all([api.regions(), api.layers(), api.pois(), api.traverse(), api.ortho(), api.sandLayer()]).then(([reg, layers, pois, trav, ortho, sand]) => {
       if (!reg.ok || !layers.ok || !pois.ok) {
         setRegion({ status: 'error' });
         return;
@@ -139,7 +139,8 @@ export function RegionProvider({ children }) {
       setRegion({
         status: 'ready',
         bbox: jezero.bbox,
-        layers: layers.data,
+        // Capa de arena del planificador v4 (si la API la ofrece): se dibuja como un ráster más.
+        layers: sand.ok ? [...layers.data, { ...sand.data, instrument: 'MRO HiRISE', resolution_m: 20 }] : layers.data,
         pois: pois.data,
         // Hábitat por defecto: sitio de aterrizaje de Perseverance = primer waypoint del recorrido real (NASA/JPL).
         landing: pois.data.landing_site

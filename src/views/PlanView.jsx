@@ -19,7 +19,7 @@ import { useRegion, useStore } from '../state/store.jsx';
 const PRESETS = ['safe', 'balanced', 'fast', 'science'];
 const LAYER_GROUPS = [
   { id: 'base', items: [{ k: 'ortho', label: 'layer.mars', src: LAYER_INFO.color.source }, { k: 'hirise', label: 'layer.hirise' }] },
-  { id: 'walk', items: [{ k: 'slope', label: 'layer.slope', raster: true }, { k: 'traversability', label: 'layer.trav', raster: true }, { k: 'hillshade', label: 'layer.shade', raster: true }] },
+  { id: 'walk', items: [{ k: 'sand', label: 'layer.sand', raster: true }, { k: 'slope', label: 'layer.slope', raster: true }, { k: 'traversability', label: 'layer.trav', raster: true }, { k: 'hillshade', label: 'layer.shade', raster: true }] },
   { id: 'science', items: [{ k: 'geology', label: 'layer.geology', src: LAYER_INFO.geology.source }, { k: 'mola', label: 'layer.mola', src: LAYER_INFO.mola.source }, { k: 'themis', label: 'layer.themis', src: LAYER_INFO.themis.source }] },
   { id: 'ref', items: [{ k: 'places', label: 'layer.places', src: 'NASA Mars Trek · EZMars (2015) · nomenclatura IAU' }, { k: 'traverse', label: 'plan.traverse' }] },
 ];
@@ -41,6 +41,7 @@ export default function PlanView({ go }) {
     hillshade: false,
     slope: false,
     traversability: false,
+    sand: true,
     traverse: true,
     places: true,
   });
