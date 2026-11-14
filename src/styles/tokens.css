@@ -1,0 +1,89 @@
+/* Tokens de diseño de Marswalk. Cada valor cita de qué referencia sale (CSS/JS publicado, revisado 2026-11-06):
+   [ETH]  space.ethz.ch — themes/ETH/css/style.css
+   [RS69] rs69.dev — styles.min.css / script.min.js (paletas de galaxia)
+   [CoM]  anthropic.com/features/claude-on-mars — _next/static CSS
+   Fuentes: Michroma (OFL) y Eudoxus Sans (OFL 1.1) [ETH]; JetBrains Mono (OFL) [CoM]. */
+
+@font-face {
+  font-family: 'Eudoxus Sans';
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/EudoxusSans-Light.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Eudoxus Sans';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/EudoxusSans-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Eudoxus Sans';
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/EudoxusSans-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Eudoxus Sans';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/EudoxusSans-Bold.woff2') format('woff2');
+}
+
+:root {
+  /* Tipografía */
+  --font-display: 'Michroma', 'Eudoxus Sans', sans-serif; /* [ETH] --michroma */
+  --font-body: 'Eudoxus Sans', system-ui, sans-serif; /* [ETH] --eudoxus-* */
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace; /* [CoM] --jetbrains-mono */
+  --caption: 13px; /* [CoM] --mars-caption */
+  --body: 16px; /* [CoM] --mars-body (móvil) */
+  --headline: 22px; /* [CoM] --mars-headline-2 (móvil) */
+  --headline-lg: 44px; /* [CoM] --mars-headline-2 (escritorio) */
+
+  /* Pantallas — [CoM] */
+  --black: #000; /* --mars-black */
+  --white: #faf9f5; /* --mars-white = slate-050 */
+  --ui: #87867f; /* --mars-ui-default = slate-500 */
+  --ui-active: var(--white); /* --mars-ui-active */
+  --slate-200: #e8e6dc;
+  --slate-400: #b0aea5;
+  --slate-700: #3d3d3a;
+  --slate-800: #262624;
+  --slate-900: #1a1918;
+  --radius: 4px;
+
+  /* Espacio — [ETH] */
+  --space-0: #050117;
+  --space-1: #070b1d;
+  --space-2: #101533;
+  --space-3: #253054;
+  --space-4: #34416f;
+  --space-accent: #a3b8ff;
+  --space-ice: #c2ddff;
+  --space-blue: #214dff;
+
+  /* Órbitas — [RS69] tres paletas de galaxia, cada una con significado */
+  --orbit-core: rgb(240 250 255); /* azul = datos de órbita / satélite */
+  --orbit-bright: rgb(150 210 255);
+  --orbit-mid: rgb(70 150 240);
+  --orbit-dark: rgb(30 80 180);
+  --orbit-accent: #60a5fa;
+  --ground-core: rgb(255 250 230); /* ámbar = suelo / robot / astronauta */
+  --ground-bright: rgb(255 210 140);
+  --ground-mid: rgb(240 150 70);
+  --ground-dark: rgb(180 80 30);
+  --earth-core: rgb(255 240 255); /* violeta = Tierra / enlace con retraso */
+  --earth-bright: rgb(210 170 255);
+  --earth-mid: rgb(150 90 220);
+  --earth-accent: #a78bfa;
+  --earth-deep: #7c3aed;
+  --sun-gold: rgb(255 179 38); /* [RS69] shader: gold = vec3(1.0, 0.7, 0.15) */
+  --alert: rgb(255 115 13); /* [RS69] shader: hotOrange = vec3(1.0, 0.45, 0.05) */
+
+  /* Movimiento */
+  --t-hover: 0.2s; /* [CoM] transition: opacity .2s */
+  --ease-pan: cubic-bezier(0.4, 0, 0.2, 1); /* [CoM] paneo .6s */
+  --ease-view: cubic-bezier(0.77, 0, 0.175, 1); /* [CoM] */
+  --ease-in-quart: cubic-bezier(0.895, 0.03, 0.685, 0.22); /* [CoM] --ease-in-quart (pulsate 4s) */
+  --ease-enter: cubic-bezier(0.25, 1, 0.5, 1); /* [ETH] transform 1s */
+  --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1); /* [RS69] */
+}
