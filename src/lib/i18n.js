@@ -682,6 +682,34 @@ Object.assign(en, {
   'chat.voiceFail': 'The voice assistant is not responding. Type your message.',
 });
 
+// Robot real a escala (cuadro de 2×2 m)
+Object.assign(es, {
+  'rr.title': 'Robot real',
+  'rr.toggle': 'Mover el robot real con la EVA (cuadro de 2×2 m)',
+  'rr.diagram': 'Ruta a escala dentro del cuadro de 2×2 m',
+  'rr.scale': 'Escala: 1 km de Marte = {cm} cm',
+  'rr.length': 'Recorrido del robot: {m} m',
+  'rr.place': 'Coloca el robot en la esquina inferior izquierda (centro a ~20 cm de cada pared) mirando al frente ↑.',
+  'rr.pace': 'Avanza al ritmo de la simulación; usa ×30 o ×60.',
+  'rr.stop': 'DETENER ROBOT',
+  'rr.st.off': 'apagado', 'rr.st.armed': 'listo', 'rr.st.starting': 'iniciando…', 'rr.st.following': 'siguiendo la ruta',
+  'rr.st.done': 'terminado', 'rr.st.stopped': 'detenido',
+  'rr.st.reposition': 'pon el robot en la esquina mirando ↑', 'rr.ready': 'Robot en la esquina',
+});
+Object.assign(en, {
+  'rr.title': 'Real robot',
+  'rr.toggle': 'Move the real robot with the EVA (2×2 m square)',
+  'rr.diagram': 'Route scaled into the 2×2 m square',
+  'rr.scale': 'Scale: 1 km on Mars = {cm} cm',
+  'rr.length': 'Robot path: {m} m',
+  'rr.place': 'Place the robot in the bottom-left corner (center ~20 cm from each wall) facing forward ↑.',
+  'rr.pace': 'It moves at the simulation pace; use ×30 or ×60.',
+  'rr.stop': 'STOP ROBOT',
+  'rr.st.off': 'off', 'rr.st.armed': 'ready', 'rr.st.starting': 'starting…', 'rr.st.following': 'following the route',
+  'rr.st.done': 'finished', 'rr.st.stopped': 'stopped',
+  'rr.st.reposition': 'put the robot back in the corner facing ↑', 'rr.ready': 'Robot in the corner',
+});
+
 export const DICTS = { es, en };
 
 export function detectLang(search = '', nav = {}) {

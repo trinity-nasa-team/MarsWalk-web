@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Icon } from './components/Icons.jsx';
 import Marquee from './components/Marquee.jsx';
+import RealRobotFollower from './components/RealRobotFollower.jsx';
 import Starfield from './components/Starfield.jsx';
 import { formatClock } from './lib/geo.js';
 import { useTheme } from './lib/theme.js';
@@ -137,6 +138,7 @@ export default function App() {
             </div>
           </div>
         </header>
+        <RealRobotFollower />
         <div className={`body-row ${view === 'home' ? 'no-rail' : ''}`}>
           {view !== 'home' && (
             <nav className="rail" aria-label={t('nav.menu')}>
