@@ -9,7 +9,7 @@ import { pointAt } from '../lib/geo.js';
 import { ROBOT_LEAD_M } from '../lib/sim.js';
 import { useStore } from '../state/store.jsx';
 import { getFollow, onFollow, robotCommand, robotMove, robotPoseReset, robotState, setFollow } from '../lib/robot.js';
-import { SQUARE, nextMove, planToSquare } from '../lib/robotPath.js';
+import { SQUARE, clampToSquare, nextMove, planToSquare } from '../lib/robotPath.js';
 
 const TICK_MS = 150;
 const QUEUE_AHEAD_MS = 800; // cuánto movimiento tener siempre en cola
@@ -81,7 +81,7 @@ export default function RealRobotFollower() {
       const { coords, cum } = s.eva.route;
       const p = pointAt(coords, cum, s.eva.progress_m + ROBOT_LEAD_M + lookaheadMars);
       if (!p?.pos) return;
-      const m = nextMove(pose, plan.toSquare(p.pos), STEP);
+      const m = nextMove(pose, clampToSquare(plan.toSquare(p.pos)), STEP); // nunca pedir salir del cuadro
       if (!m) return;
       sending = true;
       const r = await robotMove(m.turn_deg, m.drive_m);

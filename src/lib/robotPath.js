@@ -81,3 +81,14 @@ export function nextMove(pose, target, { minStep = 0.06, maxStep = 0.3, deadband
   const end = [pose.x + drive * Math.cos(rad(heading)), pose.y + drive * Math.sin(rad(heading))];
   return { turn_deg: Math.round(turn * 10) / 10, drive_m: Math.round(drive * 1000) / 1000, end, heading_deg: ((heading % 360) + 360) % 360 };
 }
+
+/**
+ * Acota un objetivo al interior del cuadro (a `pad` m de los bordes). La ruta de regreso y los desvíos por peligros
+ * se calculan durante la EVA y pueden salirse de la escala calculada al inicio: el robot sigue por el borde en vez de
+ * pedir un paso que la Raspberry rechazaría (409) y quedarse quieto.
+ */
+export function clampToSquare([x, y], pad = 0.1, sq = SQUARE) {
+  const lo = sq.edge_m + pad - 0.05;
+  const hi = sq.size_m - lo;
+  return [Math.min(hi, Math.max(lo, x)), Math.min(hi, Math.max(lo, y))];
+}
