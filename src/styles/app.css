@@ -2092,3 +2092,29 @@ html[data-theme='light'] .hchat-form input { background: #fff; }
 .hchat-mic { min-width: 40px !important; padding: 0 !important; color: var(--ground-bright); }
 .hchat-mic.on { background: var(--alert) !important; border-color: var(--alert) !important; color: #fff; animation: blinkb 1.2s ease-in-out infinite; }
 .hud-do .btn.approve { margin-top: 6px; min-height: 44px; justify-self: start; }
+
+/* Visión del robot (IA de segmentación en video) */
+.tab-vision { height: 100%; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+.vision { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 260px; grid-template-rows: auto minmax(0, 1fr); gap: 10px; padding: 12px 12px 0; }
+.vision-bar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; }
+.vision-upload { position: relative; cursor: pointer; }
+.vision-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.vision-view { position: relative; min-height: 220px; border-radius: 12px; overflow: hidden; background: #0b0b0e; }
+.vision-view video, .vision-view img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+.vision-mask { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transition: opacity 0.2s; }
+.vision-caption { position: absolute; left: 10px; top: 10px; display: flex; gap: 8px; align-items: center; padding: 4px 8px; border-radius: 8px; background: rgba(0, 0, 0, 0.55); }
+.vision-caption .warn { color: var(--ground-bright, #ffd28c); }
+.vision-play { position: absolute; right: 10px; bottom: 10px; min-width: 40px; }
+.vision-view .empty-mini { position: absolute; inset: 16px; display: grid; place-items: center; }
+.vision-side { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; font-size: 13.5px; }
+.vision-opacity { display: grid; gap: 4px; }
+.vision-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.vision-legend li { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; align-items: center; padding: 3px 6px; border-radius: 6px; }
+.vision-legend li.hot { background: rgba(226, 74, 51, 0.18); }
+.vision-legend i { width: 14px; height: 14px; border-radius: 3px; }
+.vision-hazard { padding: 10px; border: 1px solid rgba(226, 74, 51, 0.5); border-radius: 10px; display: grid; gap: 8px; }
+.vision-hazard p { margin: 0; }
+.vision-meta summary { cursor: pointer; }
+.vision-meta p, .vision-meta ul { margin: 6px 0; color: var(--slate-400); }
+.vision-credit { color: var(--slate-400); }
+@media (max-width: 900px) { .vision { grid-template-columns: 1fr; grid-template-rows: auto minmax(220px, 45vh) auto; } }

@@ -1,0 +1,88 @@
+{
+ "id": "ai4mars",
+ "name": "AI4Mars",
+ "file": "ai4mars.onnx",
+ "arch": "segmentation_models_pytorch DeepLabV3Plus, codificador resnet34",
+ "precision": "int8",
+ "size": 384,
+ "input": {
+  "kind": "gray",
+  "contrast_stretch": true,
+  "mean": [
+   0.48500001430511475,
+   0.4560000002384186,
+   0.4059999883174896
+  ],
+  "std": [
+   0.2290000021457672,
+   0.2240000069141388,
+   0.22499999403953552
+  ]
+ },
+ "classes": [
+  "suelo",
+  "roca_firme",
+  "arena",
+  "roca_grande",
+  "fondo"
+ ],
+ "classes_en": [
+  "soil",
+  "bedrock",
+  "sand",
+  "big rock",
+  "background"
+ ],
+ "colors": [
+  [
+   176,
+   140,
+   98
+  ],
+  [
+   120,
+   132,
+   150
+  ],
+  [
+   242,
+   196,
+   68
+  ],
+  [
+   226,
+   74,
+   51
+  ],
+  [
+   40,
+   40,
+   48
+  ]
+ ],
+ "ignore_in_share": [
+  "fondo"
+ ],
+ "hazards": {
+  "arena": 0.15,
+  "roca_grande": 0.01
+ },
+ "dataset": "AI4Mars (NASA/JPL; Swan et al. 2021), copia Hugging Face hassanjbara/AI4MARS, CC0",
+ "limitations": [
+  "Imágenes de rovers anteriores, no de Perseverance ni de Jezero.",
+  "La clase fondo sale de las máscaras de rover y distancia; su codificación se detectó automáticamente.",
+  "Validación = último 10 % de las imágenes de entrenamiento, en su orden original.",
+  "Latencia en CPU medida en Colab."
+ ],
+ "metrics": {
+  "test_miou": 0.811,
+  "split": "test_min3"
+ },
+ "validation": {
+  "images": 16,
+  "agree_onnx_fp32": 1.0,
+  "agree_int8": 0.9877,
+  "cpu_ms_fp32": 33,
+  "cpu_ms_int8": 18
+ }
+}

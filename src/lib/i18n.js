@@ -596,6 +596,44 @@ Object.assign(en, { 'hab.restart': 'Restart the EVA (same route)' });
 Object.assign(es, { 'home.suit': 'Prototipo de traje xEMU (NASA)' });
 Object.assign(en, { 'home.suit': 'xEMU suit prototype (NASA)' });
 
+// Visión del robot (IA de segmentación en video, en el navegador).
+Object.assign(es, {
+  'habtab.vision': 'Visión IA',
+  'habtab.vision.help': 'La IA del robot pinta el terreno cuadro por cuadro. Cambia de modelo sin detener el video. Corre en este equipo: el video no sale de aquí.',
+  'vis.model': 'Modelo de visión', 'vis.source': 'Fuente de video',
+  'vis.src.tour': 'Recorrido Jezero', 'vis.src.camera': 'Cámara', 'vis.src.file': 'Mi video o foto',
+  'vis.pickFile': 'Elige un video o una foto del terreno.',
+  'vis.loading': 'Cargando modelo…', 'vis.error': 'No se pudo correr el modelo', 'vis.camError': 'Sin acceso a la cámara',
+  'vis.fps': '{fps} cuadros/s · {ms} ms por cuadro', 'vis.ms': '{ms} ms',
+  'vis.opacity': 'Opacidad de la máscara',
+  'vis.hazard': 'Peligro visible:', 'vis.clear': 'Sin arena ni rocas peligrosas por encima del umbral.',
+  'vis.report': 'Reportar al robot y pedir desvío', 'vis.reportOff': 'Disponible con la EVA en marcha y lejos de la meta',
+  'vis.about': 'Sobre el modelo {name}', 'vis.gray': 'entrada en gris', 'vis.rgb': 'entrada a color',
+  'vis.notJezero': 'Demostración: no está validado con imágenes de Perseverance ni de Jezero.',
+  'vis.tourCredit': 'Recorrido armado con 8 fotos reales de la Hazcam frontal de Perseverance (soles 106–353, NASA/JPL-Caltech); no es un video continuo del rover.',
+  'vis.class.suelo': 'Suelo', 'vis.class.roca_firme': 'Roca firme', 'vis.class.arena': 'Arena', 'vis.class.roca_grande': 'Roca grande',
+  'vis.class.fondo': 'Fondo / rover', 'vis.class.cielo': 'Cielo', 'vis.class.cresta': 'Cresta', 'vis.class.roca_madre': 'Roca madre',
+  'vis.class.roca_suelta': 'Roca suelta', 'vis.class.rover': 'Rover', 'vis.class.huella': 'Huella', 'vis.class.hoyo': 'Hoyo',
+});
+Object.assign(en, {
+  'habtab.vision': 'AI vision',
+  'habtab.vision.help': 'The robot AI paints the terrain frame by frame. Switch models without stopping the video. It runs on this device: the video never leaves it.',
+  'vis.model': 'Vision model', 'vis.source': 'Video source',
+  'vis.src.tour': 'Jezero drive', 'vis.src.camera': 'Camera', 'vis.src.file': 'My video or photo',
+  'vis.pickFile': 'Pick a video or a photo of the terrain.',
+  'vis.loading': 'Loading model…', 'vis.error': 'Could not run the model', 'vis.camError': 'No camera access',
+  'vis.fps': '{fps} frames/s · {ms} ms per frame', 'vis.ms': '{ms} ms',
+  'vis.opacity': 'Mask opacity',
+  'vis.hazard': 'Visible hazard:', 'vis.clear': 'No sand or dangerous rocks above the threshold.',
+  'vis.report': 'Report to the robot and request a detour', 'vis.reportOff': 'Available while the EVA is walking and far from the goal',
+  'vis.about': 'About the {name} model', 'vis.gray': 'grayscale input', 'vis.rgb': 'color input',
+  'vis.notJezero': 'Demo: not validated on Perseverance or Jezero imagery.',
+  'vis.tourCredit': 'Drive assembled from 8 real Perseverance front Hazcam photos (sols 106–353, NASA/JPL-Caltech); not a continuous rover video.',
+  'vis.class.suelo': 'Soil', 'vis.class.roca_firme': 'Bedrock', 'vis.class.arena': 'Sand', 'vis.class.roca_grande': 'Big rock',
+  'vis.class.fondo': 'Background / rover', 'vis.class.cielo': 'Sky', 'vis.class.cresta': 'Ridge', 'vis.class.roca_madre': 'Bedrock',
+  'vis.class.roca_suelta': 'Loose rock', 'vis.class.rover': 'Rover', 'vis.class.huella': 'Track', 'vis.class.hoyo': 'Hole',
+});
+
 export const DICTS = { es, en };
 
 export function detectLang(search = '', nav = {}) {
