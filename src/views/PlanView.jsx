@@ -15,6 +15,7 @@ import { combineLegs } from '../lib/legs.js';
 import { LAYER_INFO } from '../lib/marsTiles.js';
 import { explainList } from '../lib/explain.js';
 import { MAX_STOPS, routeFromApi, WALK_KMH, WALKBACK_M } from '../lib/sim.js';
+import { cleanMember, crewVerdict, DEFAULT_CREW, noRescueMarkers, noSignalLines } from '../lib/crew.js';
 import { useRegion, useStore } from '../state/store.jsx';
 
 const PRESETS = ['safe', 'balanced', 'fast', 'science'];
@@ -56,8 +57,10 @@ export default function PlanView({ go }) {
   const capture = async () => setCap({ photo: await snapshotMap(mapApi.current) });
   const locked = state.phase !== 'plan';
   const stops = plan.stops;
+  const crew = plan.crew ?? DEFAULT_CREW;
+  const avoidNoSignal = plan.avoidNoSignal ?? true;
   // Clave del plan vigente: si cambia mientras se calculan los tramos, el resultado ya no corresponde.
-  const planKey = JSON.stringify([plan.habitat, stops.map((s) => s.id), plan.preset, plan.regionId]);
+  const planKey = JSON.stringify([plan.habitat, stops.map((s) => s.id), plan.preset, plan.regionId, crew, avoidNoSignal]);
   const planKeyRef = useRef(planKey);
   planKeyRef.current = planKey;
 
@@ -136,7 +139,15 @@ export default function PlanView({ go }) {
     let from = plan.habitat;
     for (let i = 0; i < stops.length; i++) {
       setBusy(t('plan.legOf', { n: i + 1, total: stops.length }));
-      const res = await api.route({ from, to: stops[i].pos, habitat: plan.habitat, preset: plan.preset, maxRadius: WALKBACK_M, region: plan.regionId });
+      const res = await api.route({
+        from,
+        to: stops[i].pos,
+        habitat: plan.habitat,
+        preset: plan.preset,
+        maxRadius: WALKBACK_M,
+        region: plan.regionId,
+        avoidNoSignal,
+      });
       if (!(res.ok && res.data.status === 'ok')) {
         setBusy('');
         setError(`${stops[i].name}: ${res.ok ? res.data.reason || t('plan.noroute') : res.error.error}`);
@@ -145,15 +156,31 @@ export default function PlanView({ go }) {
       legs.push(routeFromApi(res.data));
       from = stops[i].pos;
     }
+    // EVA en pareja (solo Jezero, con el planificador v4): O₂ de cada uno, rescate si uno se lesiona y radio.
+    let crewCheck = null;
+    if (plan.regionId === 'jezero') {
+      setBusy(t('crew.checking'));
+      const cc = await api.crewCheck({ habitat: plan.habitat, stops, crew, preset: plan.preset, avoidNoSignal });
+      if (cc.ok) crewCheck = cc.data;
+      else setError(`${t('crew.title')}: ${cc.error.error}`);
+    }
     setBusy('');
     if (planKeyRef.current !== startKey) return; // el usuario editó el plan a mitad del cálculo
-    dispatch({ type: 'PLAN_LEGS', legs });
+    dispatch({ type: 'PLAN_LEGS', legs, crewCheck });
   };
 
+  const verdict = useMemo(() => crewVerdict(plan.crewCheck, stops.length), [plan.crewCheck, stops.length]);
   const start = () => {
+    // Aviso: si a uno de los dos le pasa algo después de cierto punto, ya no alcanzan a volver. Se puede seguir,
+    // pero se pide confirmación para que el equipo busque antes una misión más segura.
+    if (verdict && verdict.level !== 'ok' && !window.confirm(t('crew.confirm'))) return;
     dispatch({ type: 'EVA_START' });
     go('habitat');
   };
+  const setCrew = (i, patch) =>
+    dispatch({ type: 'PLAN_SET', patch: { crew: crew.map((m, j) => (j === i ? cleanMember({ ...m, ...patch }) : m)) } });
+  const crewLines = useMemo(() => (locked ? [] : noSignalLines(plan.crewCheck)), [locked, plan.crewCheck]);
+  const crewMarkers = useMemo(() => (locked ? [] : noRescueMarkers(plan.crewCheck)), [locked, plan.crewCheck]);
 
   const summary = useMemo(() => combineLegs(plan.legs), [plan.legs]);
   const evaRoute = locked ? state.eva.route : null;
@@ -181,6 +208,8 @@ export default function PlanView({ go }) {
           hazards={state.eva?.hazards}
           onClick={onMapClick}
           fitTo={summary?.coords}
+          extraLines={crewLines}
+          extraMarkers={crewMarkers}
           flyTo={fly}
           intro
           apiRef={mapApi}
@@ -376,6 +405,90 @@ export default function PlanView({ go }) {
           <div className="step">
             <h3>
               <span className="num">04</span>
+              {t('crew.title')}
+            </h3>
+            <p className="note" style={{ margin: 0 }}>
+              {t('crew.note')}
+            </p>
+            {crew.map((m, i) => (
+              <div key={i} className="row crew-row">
+                <span className="stop-num small">{'AB'[i]}</span>
+                <label>
+                  {t('crew.mass')}
+                  <input
+                    type="number"
+                    min="40"
+                    max="150"
+                    value={m.mass_kg}
+                    disabled={locked}
+                    onChange={(e) => setCrew(i, { mass_kg: e.target.value })}
+                  />
+                  kg
+                </label>
+                <label>
+                  O₂
+                  <input
+                    type="number"
+                    min="50"
+                    max="2000"
+                    step="10"
+                    value={m.o2_l}
+                    disabled={locked}
+                    onChange={(e) => setCrew(i, { o2_l: e.target.value })}
+                  />
+                  L
+                </label>
+              </div>
+            ))}
+            <label className="layer-row">
+              <input
+                type="checkbox"
+                checked={avoidNoSignal}
+                disabled={locked}
+                onChange={(e) => dispatch({ type: 'PLAN_SET', patch: { avoidNoSignal: e.target.checked } })}
+              />
+              <span className="lr-text">
+                <span className="lr-name">{t('crew.avoidSignal')}</span>
+                <span className="lr-help">{t('crew.avoidSignal.help')}</span>
+              </span>
+            </label>
+          </div>
+
+          {plan.crewCheck && !locked && (
+            <div className="step reveal">
+              <h3>{t('crew.result')}</h3>
+              {verdict && (
+                <div className={`alert-line ${verdict.level}`}>
+                  {t(verdict.key, verdict.params)} {verdict.where && verdict.level !== 'ok' ? t(`crew.where.${verdict.where}`, verdict.params) : ''}
+                  {verdict.level !== 'ok' && <div style={{ marginTop: 4 }}>{t('crew.advice')}</div>}
+                </div>
+              )}
+              {plan.crewCheck.crew.map((c, i) => (
+                <div key={i} className="row" style={{ justifyContent: 'space-between', fontSize: 13 }}>
+                  <span>
+                    {'AB'[i]} · {Math.round(c.mass_kg)} kg
+                  </span>
+                  <span className="mono" style={{ color: c.o2_end_pct < 15 ? 'var(--alert)' : undefined }}>
+                    {t('crew.o2', { used: Math.round(c.o2_used_l), tank: Math.round(c.o2_l), pct: Math.round(c.o2_end_pct) })}
+                  </span>
+                </div>
+              ))}
+              <div className="row" style={{ justifyContent: 'space-between', fontSize: 13 }}>
+                <span>{t('crew.signal')}</span>
+                <span className="mono" style={{ color: plan.crewCheck.signal.longest_no_signal_m > 500 ? 'var(--sun-gold)' : undefined }}>
+                  {t('crew.signalVal', {
+                    pct: plan.crewCheck.signal.no_signal_pct.toFixed(0),
+                    max: formatKm(plan.crewCheck.signal.longest_no_signal_m),
+                  })}
+                </span>
+              </div>
+              <p className="note">{t('crew.assume')}</p>
+            </div>
+          )}
+
+          <div className="step">
+            <h3>
+              <span className="num">05</span>
               {t('vit.status')}
             </h3>
             {vit ? (
@@ -464,6 +577,7 @@ export default function PlanView({ go }) {
               <button type="button" className="btn block" disabled={!stops.length || !!busy} onClick={compute}>
                 {busy || (stops.length ? t('plan.compute') : t('plan.pick'))}
               </button>
+              {verdict && verdict.level !== 'ok' && <div className={`alert-line ${verdict.level}`}>{t('crew.short')}</div>}
               <button type="button" className="btn primary block" disabled={!plan.legs} onClick={start}>
                 {t('plan.start')} →
               </button>

@@ -2,6 +2,7 @@
 // controlador: el reducer solo declara `eva.request` y recibe `ROUTE_RESULT`.
 import { cumulative, haversine, pointAt } from './geo.js';
 import { ASTRO_O2_H, co2At, ROBOT_RANGE_KM, SUIT_PWR_H } from './vitals.js';
+import { DEFAULT_CREW } from './crew.js';
 
 /** Simulaciones de entorno que el hábitat puede disparar. Duración en tiempo de misión. */
 export const SIMS = { sep: { dur_s: 24 * 3600 }, dust: { dur_s: 6 * 3600 }, devil: { dur_s: 15 * 60 } };
@@ -92,7 +93,19 @@ export function initialState() {
     phase: 'plan', // plan | eva
     leader: null,
     // stops: paradas en orden [{id, name, pos}] · legs: una ruta A* por tramo (hábitat → P1 → P2 …)
-    plan: { habitat: null, stops: [], preset: 'safe', legs: null, regionId: 'jezero', regionBbox: null },
+    // crew: la pareja de la EVA · avoidNoSignal: las rutas evitan zonas sin señal del hábitat
+    // crewCheck: revisión de la pareja (O₂ de cada uno, rescate y radio) de los tramos calculados
+    plan: {
+      habitat: null,
+      stops: [],
+      preset: 'safe',
+      legs: null,
+      regionId: 'jezero',
+      regionBbox: null,
+      crew: DEFAULT_CREW,
+      avoidNoSignal: true,
+      crewCheck: null,
+    },
     eva: null,
     events: [],
     seq: 0,
@@ -250,12 +263,12 @@ export function reducer(state, action) {
       return action.state;
     case 'PLAN_SET': {
       if (state.phase !== 'plan') return state;
-      const plan = { ...state.plan, ...action.patch, legs: null };
+      const plan = { ...state.plan, ...action.patch, legs: null, crewCheck: null };
       return { ...state, plan };
     }
     case 'PLAN_LEGS':
       if (state.phase !== 'plan') return state;
-      return { ...state, plan: { ...state.plan, legs: action.legs } };
+      return { ...state, plan: { ...state.plan, legs: action.legs, crewCheck: action.crewCheck ?? null } };
     case 'EVA_START': {
       const { legs, stops } = state.plan;
       if (state.phase !== 'plan' || !legs || !stops.length || legs.length !== stops.length) return state;

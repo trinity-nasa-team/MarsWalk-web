@@ -90,6 +90,7 @@ export function StoreProvider({ children }) {
         hazards: req.hazards,
         maxRadius: WALKBACK_M,
         region: state.plan.regionId,
+        avoidNoSignal: state.plan.avoidNoSignal ?? true,
       })
       .then((res) => {
         const ok = res.ok && res.data.status === 'ok';

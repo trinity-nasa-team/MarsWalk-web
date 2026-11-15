@@ -51,7 +51,7 @@ export const api = {
    * Ruta de un tramo: from/to/habitat como [lon, lat]. En Jezero usa el planificador v4 (arena de Séítah,
    * pendiente fina, peligros del robot como celdas verificadas); fuera de Jezero, el A* legado con walkback.
    */
-  route: async ({ from, to, habitat, preset, hazards = [], maxRadius, region = REGION, agent = 'astronaut', legacy = false }) => {
+  route: async ({ from, to, habitat, preset, hazards = [], maxRadius, region = REGION, agent = 'astronaut', legacy = false, avoidNoSignal = false }) => {
     const legacyRoute = () =>
       post(`/regions/${region}/route`, {
         start: ll(from),
@@ -67,11 +67,25 @@ export const api = {
       preset,
       agent,
       obstacles: hazards.map((h) => ({ ...ll(h.pos), radius_m: h.radius_m })),
+      // Con el hábitat, el tramo trae la señal de radio; con avoid_no_signal, además evita las zonas sin señal.
+      ...(habitat ? { habitat: ll(habitat), avoid_no_signal: avoidNoSignal } : {}),
     });
     // Fuera de la malla del planificador v4 (o tramo demasiado largo): A* legado de la región.
     if (!res.ok && ['out_of_planner_grid', 'leg_too_long'].includes(res.error?.code)) return legacyRoute();
     return res;
   },
+  /**
+   * EVA en pareja (planificador v4 + eva_pareja): O₂ de cada astronauta, punto desde el que ya no hay rescate si uno
+   * se lesiona y señal de radio con el hábitat. Recorre hábitat → paradas → hábitat. Solo Jezero.
+   */
+  crewCheck: ({ habitat, stops, crew, preset, avoidNoSignal = true }) =>
+    post(`/regions/${REGION}/eva/crew-check`, {
+      habitat: ll(habitat),
+      waypoints: stops.map((s) => ll(s.pos)),
+      crew,
+      preset,
+      avoid_no_signal: avoidNoSignal,
+    }),
   /** Misiones NSGA-II (004): orden de visita óptimo de varios sitios desde `habitat`. */
   missions: ({ habitat, poiIds }) =>
     post(`/regions/${REGION}/missions`, {

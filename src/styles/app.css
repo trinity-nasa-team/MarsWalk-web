@@ -2093,3 +2093,27 @@ html[data-theme='light'] .hchat-form input { background: #fff; }
 .hchat-mic { min-width: 40px !important; padding: 0 !important; color: var(--ground-bright); }
 .hchat-mic.on { background: var(--alert) !important; border-color: var(--alert) !important; color: #fff; animation: blinkb 1.2s ease-in-out infinite; }
 .hud-do .btn.approve { margin-top: 6px; min-height: 44px; justify-self: start; }
+
+/* EVA en pareja: punto desde el que ya no hay rescate y datos de cada astronauta */
+.marker-norescue {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--alert);
+  border: 2px solid #000;
+  box-shadow: 0 0 14px 4px rgb(255 120 60 / 0.65);
+  animation: blinkb 0.9s infinite;
+  pointer-events: none;
+}
+.crew-row {
+  gap: 10px;
+  font-size: 13px;
+}
+.crew-row label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.crew-row input {
+  width: 64px;
+}
