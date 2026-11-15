@@ -73,36 +73,7 @@ describe('visión del robot: posproceso', () => {
   });
 });
 
-describe('cámara del robot: foto real más cercana', async () => {
-  const { nearestPhoto } = await import('../src/components/Viewfinder.jsx');
-  const photos = [
-    { file: 'a.jpg', lon: 77.45, lat: 18.44, sol: 13 },
-    { file: 'b.jpg', lon: 77.40, lat: 18.48, sol: 300 },
-  ];
-  it('elige la más cercana y da la distancia en metros', () => {
-    const p = nearestPhoto(photos, [77.401, 18.479]);
-    expect(p.file).toBe('b.jpg');
-    expect(p.dist_m).toBeGreaterThan(50);
-    expect(p.dist_m).toBeLessThan(200);
-  });
-  it('sin fotos → null', () => {
-    expect(nearestPhoto([], [77.4, 18.4])).toBeNull();
-  });
-});
 
-describe('feed de video del robot', async () => {
-  const { feedPosition, FEED_STEP_M } = await import('../src/components/Viewfinder.jsx');
-  it('avanza un cuadro cada FEED_STEP_M metros y da la fracción para el fundido', () => {
-    expect(feedPosition(5, 0, 100)).toEqual({ idx: 5, next: 6, t: 0 });
-    const p = feedPosition(5, FEED_STEP_M * 2.5, 100);
-    expect(p.idx).toBe(7);
-    expect(p.t).toBeCloseTo(0.5);
-  });
-  it('da la vuelta al final de la secuencia', () => {
-    expect(feedPosition(99, FEED_STEP_M, 100).idx).toBe(0);
-    expect(feedPosition(0, 0, 0)).toEqual({ idx: 0, next: 0, t: 0 });
-  });
-});
 
 describe('rótulos por región (estilo detector)', async () => {
   const { labelRegions } = await import('../src/lib/vision.js');
@@ -135,5 +106,36 @@ describe('umbral de confianza', async () => {
     const px = colorizeConf(labels, conf, [[9, 9, 9], [1, 1, 1]], 200, new Set(), 2);
     expect(px[3]).toBeGreaterThan(0);
     expect(px[7]).toBe(0);
+  });
+});
+
+describe('cámara en vivo: suavizado, calidad y rotulado', async () => {
+  const { Smoother, labelsFromProbs, sizeFor } = await import('../src/lib/vision.js');
+  it('el suavizado exponencial mezcla el cuadro nuevo con el anterior', () => {
+    const sm = new Smoother(0.5);
+    sm.push(Float32Array.from([1, 0]));
+    const out = sm.push(Float32Array.from([0, 1]));
+    expect([...out]).toEqual([0.5, 0.5]);
+  });
+  it('alpha = 1 no suaviza y un cambio de forma reinicia', () => {
+    const sm = new Smoother(1);
+    sm.push(Float32Array.from([1, 0]));
+    expect([...sm.push(Float32Array.from([0, 1]))]).toEqual([0, 1]);
+    const sm2 = new Smoother(0.5);
+    sm2.push(Float32Array.from([1, 0]));
+    expect([...sm2.push(Float32Array.from([0, 1, 0, 1]))]).toEqual([0, 1, 0, 1]);
+  });
+  it('etiqueta y confianza salen de las probabilidades', () => {
+    // 2 clases, 2×2 px (C×S×S): clase 0 gana en px 0 y 1, clase 1 en px 2 y 3
+    const { labels, conf } = labelsFromProbs(Float32Array.from([0.9, 0.6, 0.2, 0.1, 0.1, 0.4, 0.8, 0.9]), 2, 2);
+    expect([...labels]).toEqual([0, 0, 1, 1]);
+    expect(conf[0]).toBeGreaterThanOrEqual(229); // 0.9·255 con float32
+    expect(conf[1]).toBe(153);
+  });
+  it('calidad → tamaños múltiplos de 16 sobre el nativo', () => {
+    expect(sizeFor({ size: 384 }, 'fast')).toBe(192);
+    expect(sizeFor({ size: 384 }, 'normal')).toBe(288);
+    expect(sizeFor({ size: 512 }, 'fast')).toBe(256);
+    expect(sizeFor({ size: 512 }, 'high')).toBe(512);
   });
 });

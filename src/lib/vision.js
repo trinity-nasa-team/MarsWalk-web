@@ -163,33 +163,10 @@ export function colorize(labels, colors) {
   return out;
 }
 
-// ---- Navegador: metadatos y un Web Worker que corre los modelos (ver visionWorker.js) ----
+// ---- Navegador: metadatos y un GRUPO de Web Workers que corren el modelo en paralelo (ver visionWorker.js) ----
+// Un worker de WASM usa un solo hilo (~420 ms por cuadro de AI4Mars a 384 px). Para video, varios workers procesan
+// cuadros alternos en paralelo: el rendimiento (cuadros/s) crece casi lineal con el número de workers.
 const metas = new Map();
-let worker = null;
-let seq = 0;
-const pending = new Map();
-
-function getWorker() {
-  if (!worker) {
-    worker = new Worker(new URL('./visionWorker.js', import.meta.url), { type: 'module' });
-    worker.onmessage = ({ data }) => {
-      const p = pending.get(data.id);
-      if (!p) return;
-      pending.delete(data.id);
-      if (data.ok) p.resolve(data);
-      else p.reject(new Error(data.error));
-    };
-  }
-  return worker;
-}
-
-function ask(msg, transfer = []) {
-  const id = ++seq;
-  return new Promise((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    getWorker().postMessage({ id, ...msg }, transfer);
-  });
-}
 
 export async function loadMeta(id) {
   if (!metas.has(id)) {
@@ -203,29 +180,135 @@ export async function loadMeta(id) {
   return metas.get(id);
 }
 
-/** Descarga y prepara el modelo antes del primer cuadro (la primera carga son 23–53 MB). */
-export async function warmUp(id) {
-  const meta = await loadMeta(id);
-  await ask({ warm: true, url: `${BASE}/${meta.file}` });
-  return meta;
+/** Calidad → lado de la imagen que ve la IA (múltiplo de 16; el modelo acepta cualquier tamaño así). */
+export const QUALITIES = ['fast', 'normal', 'high'];
+export function sizeFor(meta, quality) {
+  const f = { fast: 0.5, normal: 0.75, high: 1 }[quality] ?? 1;
+  return Math.max(96, Math.round((meta.size * f) / 16) * 16);
 }
 
-let grab = null;
-/** Segmenta el cuadro actual de una imagen, video o cámara (cualquier fuente que acepte drawImage). */
-export async function segment(id, source) {
-  const meta = await loadMeta(id);
-  const S = meta.size;
-  grab ??= document.createElement('canvas');
-  if (grab.width !== S) {
-    grab.width = S;
-    grab.height = S;
+/** Workers recomendados: uno por cada 4 hilos lógicos (máx. 4; la memoria es una copia del modelo por worker). */
+export function defaultWorkers() {
+  return Math.max(1, Math.min(4, Math.floor((navigator.hardwareConcurrency || 4) / 4)));
+}
+
+/** Probabilidades suavizadas en el tiempo (media móvil exponencial): quita el parpadeo de la máscara en video. */
+export class Smoother {
+  constructor(alpha = 0.6) {
+    this.alpha = alpha;
+    this.prev = null;
   }
-  const ctx = grab.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(source, 0, 0, S, S); // mismo redimensionado a S×S que el entrenamiento
-  const rgba = ctx.getImageData(0, 0, S, S).data.buffer;
-  const r = await ask({ url: `${BASE}/${meta.file}`, rgba, size: S, input: meta.input, nClasses: meta.classes.length }, [rgba]);
-  const shares = classShares(r.labels, meta);
-  return { meta, size: S, labels: r.labels, conf: r.conf, shares, hazards: hazardsFound(shares, meta), ms: r.ms };
+
+  /** `probs` nuevas (C×S×S) → devuelve las suavizadas (misma forma). Si cambia la forma, reinicia. */
+  push(probs) {
+    if (!this.prev || this.prev.length !== probs.length || this.alpha >= 1) {
+      this.prev = probs;
+      return probs;
+    }
+    const a = this.alpha;
+    const p = this.prev;
+    for (let i = 0; i < probs.length; i++) p[i] = a * probs[i] + (1 - a) * p[i];
+    return p;
+  }
+
+  reset() {
+    this.prev = null;
+  }
+}
+
+/** Probabilidades C×S×S → etiqueta por píxel y confianza 0–255 (probabilidad de la clase ganadora). */
+export function labelsFromProbs(probs, nClasses, size) {
+  const n = size * size;
+  const labels = new Uint8Array(n);
+  const conf = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    let best = 0;
+    let bv = probs[i];
+    for (let c = 1; c < nClasses; c++) {
+      const v = probs[c * n + i];
+      if (v > bv) {
+        bv = v;
+        best = c;
+      }
+    }
+    labels[i] = best;
+    conf[i] = Math.min(255, Math.round(bv * 255));
+  }
+  return { labels, conf };
+}
+
+/**
+ * Grupo de workers para un modelo. `run(source, size)` toma el cuadro AHORA (síncrono) y lo manda a un worker libre;
+ * devuelve una promesa con las probabilidades, o `null` si todos están ocupados (el llamador salta ese cuadro).
+ */
+export function createVisionPool(modelId, n = defaultWorkers()) {
+  const workers = [];
+  const pending = new Map();
+  let seq = 0;
+  let closed = false;
+  let grab = null;
+  let urlP = null;
+
+  const onMessage = ({ data }) => {
+    const p = pending.get(data.id);
+    if (!p) return;
+    pending.delete(data.id);
+    if (data.ok) p.resolve(data);
+    else p.reject(new Error(data.error));
+  };
+  for (let k = 0; k < n; k++) {
+    const w = new Worker(new URL('./visionWorker.js', import.meta.url), { type: 'module' });
+    w.onmessage = onMessage;
+    workers.push({ w, busy: false, ready: false });
+  }
+  const ask = (slot, msg, transfer = []) =>
+    new Promise((resolve, reject) => {
+      const id = ++seq;
+      pending.set(id, { resolve, reject });
+      slot.w.postMessage({ id, ...msg }, transfer);
+    });
+
+  const ready = (async () => {
+    const meta = await loadMeta(modelId);
+    urlP = `${BASE}/${meta.file}`;
+    await Promise.all(workers.map((slot) => ask(slot, { init: true, url: urlP }).then(() => (slot.ready = true))));
+    return meta;
+  })();
+
+  return {
+    workers: n,
+    ready,
+    run(source, size) {
+      if (closed) return null;
+      const slot = workers.find((x) => x.ready && !x.busy);
+      if (!slot) return null;
+      grab ??= document.createElement('canvas');
+      if (grab.width !== size) {
+        grab.width = size;
+        grab.height = size;
+      }
+      const ctx = grab.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(source, 0, 0, size, size); // mismo redimensionado a S×S que el entrenamiento
+      const rgba = ctx.getImageData(0, 0, size, size).data.buffer;
+      const t0 = performance.now();
+      slot.busy = true;
+      const seqNo = ++seq;
+      return metas
+        .get(modelId)
+        .then((meta) =>
+          ask(slot, { url: urlP, rgba, size, input: meta.input, nClasses: meta.classes.length }, [rgba]),
+        )
+        .then((r) => ({ probs: r.probs, size, nClasses: r.nClasses, ms: r.ms, latency: performance.now() - t0, seq: seqNo, meta: null }))
+        .finally(() => {
+          slot.busy = false;
+        });
+    },
+    close() {
+      closed = true;
+      for (const { w } of workers) w.terminate();
+      pending.clear();
+    },
+  };
 }
 
 /**

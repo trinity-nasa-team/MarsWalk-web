@@ -9,6 +9,7 @@ import { snapshotMap } from '../lib/findings.js';
 import { liveVitals } from '../lib/vitals.js';
 import MapView from '../components/MapView.jsx';
 import Profile from '../components/Profile.jsx';
+import LiveCamera from '../components/LiveCamera.jsx';
 import Viewfinder from '../components/Viewfinder.jsx';
 import { eventText } from '../lib/i18n.js';
 import { cardinal, formatClock, formatKm } from '../lib/geo.js';
@@ -26,6 +27,7 @@ export default function HabitatView({ go }) {
   const mapApi = useRef(null);
   const [cap, setCap] = useState(null);
   const [tab, setTab] = useState('status');
+  const [camSrc, setCamSrc] = useState('live'); // cámara del robot: en vivo (real) o simulada (render 3D)
   const hasPending = !!state.eva?.pending;
   // Cuando el robot propone una ruta nueva, se abre la pestaña de aprobación.
   useEffect(() => {
@@ -152,10 +154,21 @@ export default function HabitatView({ go }) {
 
           {tab === 'camera' && (
             <div className="tab-camera">
-              <div className="tab-camera-view">
-                <Viewfinder regionId={state.plan.regionId} robot={d.robot} hazards={eva.hazards} route={d.aheadOfRobot} routeColor={routeColor} sol={`T+${formatClock(state.simTime_s)}`} />
+              <div className="tab-camera-bar chips" role="radiogroup">
+                {['live', 'sim'].map((m) => (
+                  <button key={m} type="button" className="chip" role="radio" aria-checked={camSrc === m} aria-pressed={camSrc === m} onClick={() => setCamSrc(m)}>
+                    {t(`live.src.${m}`)}
+                  </button>
+                ))}
               </div>
-              <p className="tab-help">{t('habtab.camera.help')}</p>
+              <div className="tab-camera-view">
+                {camSrc === 'live' ? (
+                  <LiveCamera />
+                ) : (
+                  <Viewfinder regionId={state.plan.regionId} robot={d.robot} hazards={eva.hazards} route={d.aheadOfRobot} routeColor={routeColor} sol={`T+${formatClock(state.simTime_s)}`} />
+                )}
+              </div>
+              {camSrc === 'sim' && <p className="tab-help">{t('habtab.camera.help')}</p>}
             </div>
           )}
 

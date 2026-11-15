@@ -8,6 +8,7 @@
  "input": {
   "kind": "gray",
   "contrast_stretch": true,
+  "white_balance": false,
   "mean": [
    0.48500001430511475,
    0.4560000002384186,
@@ -87,10 +88,11 @@
   "best_for": "arena"
  },
  "validation": {
-  "images": 16,
+  "images": 48,
   "agree_onnx_fp32": 1.0,
-  "agree_int8": 0.9877,
-  "cpu_ms_fp32": 33,
-  "cpu_ms_int8": 18
+  "agree_int8": 0.9866,
+  "cpu_ms_fp32": 354,
+  "cpu_ms_int8": 265,
+  "agree_int8_half_res": 0.7842
  }
 }

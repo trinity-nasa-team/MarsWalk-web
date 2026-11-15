@@ -1,59 +1,46 @@
-# 2026-11-14 — Visión del robot en video (AI4Mars ↔ S5Mars)
+# 2026-11-14 — Cámara en vivo del robot con segmentación semántica en tiempo real
 
-> **Cambio (misma fecha):** a pedido del usuario se quitó la pestaña aparte "Visión IA" (y el video de recorrido).
-> La segmentación ahora corre **en tiempo real sobre la cámara del robot** (Hábitat → Cámara, NAVCAM · SCOUT-1):
-> panel con Apagada / AI4Mars / S5Mars, opacidad, leyenda en vivo y "Reportar al robot". Hook `useSegmentation`.
-> **Resultado medido sobre el render 3D (no es foto):** AI4Mars ≈ 100 % "arena", S5Mars ≈ 81 % "arena" → la
-> segmentación no es significativa sobre el render; el aviso de peligro salta siempre. Se etiqueta como demostrativo.
-> **Versión final (misma fecha):** la cámara del robot muestra por defecto la **foto real de Perseverance más
-> cercana** a su posición (55 fotos de la Hazcam frontal a lo largo del recorrido real, soles 13–1349, a ≤10 km del
-> aterrizaje, `public/img/robotcam/`, generadas con `MarsWalk-v2/scripts/fetch_robot_photos.py`), con transición al
-> cambiar y barrido de escaneo al segmentar. La IA **solo corre sobre fotos reales**; en "Render 3D" se apaga (sobre
-> el render gris todo salía "arena"). Ej. medido: S5Mars sobre sol 13 → roca madre 67 %, roca suelta 26 %, suelo 4 %.
-> **Feed de video (misma fecha):** la cámara reproduce como video la secuencia real de la Hazcam de Perseverance
-> (106 cuadros, 2 por sol, puntos cada ≥120 m, `public/img/robotfeed/`): arranca en el cuadro más cercano al robot y
-> avanza uno cada 60 m que camina (acercamiento + fundido; en pausa si la simulación se pausa). La IA predice sobre el
-> feed en bucle (AI4Mars ≈ 2.2 cuadros/s, S5Mars ≈ 0.7). Modelo en **lista desplegable** con mIoU e IoU de arena, y
-> tarjeta comparativa (mIoU, exactitud, IoU arena, clases, ms en vivo) con la recomendación: AI4Mars para arena,
-> S5Mars para detalle. Métricas de cada informe en su propio test: comparación orientativa.
-> **Sincronía tipo detector (misma fecha):** la IA predice **por adelantado** (cuadro visible + 3 siguientes, una
-> predicción por foto en caché) y la máscara y los **rótulos por región** (clase + %) se dibujan en el mismo canvas
-> con la misma transformación que la foto → sin retraso. Si la predicción del siguiente cuadro no está lista, el
-> video espera (la velocidad del feed se adapta al modelo). Medido en Chrome: en sincronía 40/40 muestras con
-> AI4Mars (×60 y ×120) y con S5Mars (×60). Se eliminó el hook `useSegmentation`.
-> **Calidad de la predicción (misma fecha):** al revisar a ojo, la máscara cruda era ruido (S5Mars sobre la Hazcam
-> amarillenta; píxeles dudosos pintados igual). Cambios: (1) **umbral de confianza** (softmax por píxel; por defecto
-> 70 %, ajustable 40–95 %): lo dudoso no se pinta y se reporta como "Sin clasificar"; (2) **balance de blancos**
-> gray-world en la entrada de S5Mars (replicado en `export_vision_onnx.py` y con fixture de paridad); (3) máscara con
-> relleno suave + contorno; (4) se quitaron 13 cuadros en gris (S5Mars es de color); quedan 93. Principio: mejor
-> no pintar que pintar basura. Sigue siendo dominio distinto (Curiosity ≠ Perseverance/Jezero).
-> Lo de abajo describe la primera versión (pestaña aparte) y queda como historial.
+## Qué es
+Hábitat → **Cámara → "Cámara en vivo"**: se conecta la cámara montada en el robot (USB, webcam o celular) o un
+video, y la IA segmenta el terreno **cuadro por cuadro sobre el video en vivo**, como un detector tipo YOLO pero por
+píxel: máscara de colores, rótulos por región (clase + %), leyenda, alerta de peligro y botón "Reportar al robot"
+(`ROBOT_DETECT`). "Simulada (render 3D)" conserva la cámara anterior de la simulación (sin IA: los modelos no
+reconocen el render gris).
 
-## Qué se hizo
-- Pestaña **Hábitat → Visión IA**: segmentación de terreno **cuadro por cuadro sobre video**, en el navegador
-  (onnxruntime-web 1.30.0, WASM, dentro de un Web Worker). Cambio de modelo en vivo sin detener el video.
-- Fuentes: recorrido armado con 8 fotos reales de la Hazcam frontal de Perseverance (soles 106–353,
-  NASA/JPL-Caltech; `public/img/vision/jezero_hazcam_recorrido.mp4`, 20 s, **no es un video continuo**), video o
-  foto propia, o cámara del equipo. Nada sale del equipo.
-- Si la IA ve arena/rocas/hoyos por encima del umbral, botón **"Reportar al robot"** → `ROBOT_DETECT` (desvío).
+## Cómo logra tiempo real (todo en el navegador, el video no sale del equipo)
+- **Grupo de Web Workers** (hasta 4, uno por cada 4 hilos lógicos) que procesan cuadros alternos en paralelo; los
+  cuadros se toman al momento de enviarlos y se descartan si todos están ocupados (siempre se procesa lo más reciente).
+- **Modelos de tamaño dinámico** (`scripts/export_vision_onnx.py`, múltiplos de 16): calidad **Rápida / Normal / Alta**
+  = 50 / 75 / 100 % de la resolución nativa.
+- **Suavizado temporal** (media móvil exponencial de las probabilidades) contra el parpadeo y **umbral de confianza**
+  (60 % por defecto): lo dudoso no se pinta y se reporta como "Sin clasificar".
+- Peligros confirmados solo si aparecen en ≥ 4 de los últimos 6 cuadros.
 
-## Modelos (`public/models/vision/`, generados con `MarsWalk-v2/scripts/export_vision_onnx.py`)
-| Modelo | Entrada | Clases | ONNX | Fidelidad vs PyTorch* | mIoU (informe) |
-|---|---|---|---|---|---|
-| AI4Mars (DeepLabV3+ resnet34) | gris 384 px, contraste p1–p99 | 5 | int8 QDQ, 22.7 MB | 98.8 % píxeles | 0.81 (test_min3) |
-| S5Mars (DeepLabV3+ resnet50) | RGB 512 px | 9 | pesos fp16 + cálculo fp32, 53.4 MB | 99.9 % píxeles | 0.78 (test) |
+## Medido (Chrome en la laptop de desarrollo, 32 hilos, video de 640×480)
+| Modelo / calidad | Resolución IA | Cuadros/s | Latencia |
+|---|---|---|---|
+| AI4Mars Rápida | 192 px | ~30 | ~125 ms |
+| AI4Mars Normal | 288 px | ~15 | ~280 ms |
+| AI4Mars Alta | 384 px | ~8–9 | ~510 ms |
+| S5Mars Rápida | 256 px | ~8–10 | ~435 ms |
+Probado con una cámara falsa de Chrome alimentada con fotos reales de Perseverance. **No probado con el robot ni con
+una cámara física.** Otras máquinas darán otras cifras.
 
-\* Sobre 16 cuadros de las fotos de Hazcam (las mismas usadas para calibrar int8): mide fidelidad de la conversión,
-no exactitud. S5Mars en int8 daba 93 % → se usó fp16 de pesos. onnxruntime-web (WASM) = onnxruntime Python al 100 %.
+## Calidad: límites conocidos
+- Entrenados con rovers de la NASA (AI4Mars: Curiosity y anteriores; S5Mars: Curiosity), no con la cámara del robot ni
+  con Jezero: **con otra cámara u otro terreno pueden fallar**. A calidad Rápida, la coincidencia de píxeles con la
+  predicción de resolución nativa es ~76–78 % (informativo).
+- S5Mars es de color natural; se aplica balance de blancos en la entrada. Sobre fotos de la Hazcam deja casi todo sin
+  clasificar con umbral 60 % (preferible a pintar ruido).
+- Si el robot trae su propia cámara, lo correcto es **ajustar (fine-tune) con imágenes de su cámara y su terreno**.
 
-## Verificación
-- `pnpm test` 39/39 (preprocesamiento JS idéntico a numpy con fixtures generados por el script de exportación).
-- `pnpm build` OK. Prueba en Chrome real (headless): video en vivo con ambos modelos, cambio en caliente y reporte.
-  Velocidad medida (dev, 1 hilo): AI4Mars ≈ 2 cuadros/s (~460 ms), S5Mars ≈ 0.6 cuadros/s (~1.5 s).
+## Notas técnicas
+- `onnxruntime-web` 1.30.0 (solo WASM, 1 hilo por worker). WebGPU se probó: en una GPU integrada Intel solo mejora a
+  S5Mars (655 vs 1583 ms) y no a AI4Mars; WASM multihilo no ayudó. Se descartaron.
+- La cámara del navegador exige https o localhost.
+- Modelos en `public/models/vision/` (AI4Mars int8 22.7 MB, S5Mars pesos fp16 53.4 MB), generados con
+  `MarsWalk-v2/scripts/export_vision_onnx.py`.
 
-## Limitaciones / pendiente
-- Entrenados con fotos de Curiosity y rovers anteriores, no de Perseverance/Jezero: dominio distinto (lente gran
-  angular de la Hazcam). Ej.: S5Mars marca parte del horizonte como "hoyo" (falso positivo).
-- Primera carga: 23–53 MB por modelo (luego caché del navegador). Sin COOP/COEP no hay hilos de WASM; con esos
-  encabezados en Vercel podría ir 2–4× más rápido.
-- El checkpoint resnet34 de S5Mars no se incluyó (sin informe de métricas).
+## Historial de esta sesión
+Primero se probó segmentar fotos de Perseverance como "feed" simulado; se descartó porque el usuario necesita una
+cámara real en el robot.

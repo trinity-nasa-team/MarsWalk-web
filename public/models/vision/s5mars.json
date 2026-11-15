@@ -8,6 +8,7 @@
  "input": {
   "kind": "rgb",
   "contrast_stretch": false,
+  "white_balance": true,
   "mean": [
    0.48500001430511475,
    0.4560000002384186,
@@ -17,8 +18,7 @@
    0.2290000021457672,
    0.2240000069141388,
    0.22499999403953552
-  ],
-  "white_balance": true
+  ]
  },
  "classes": [
   "cielo",
@@ -118,12 +118,13 @@
   "best_for": "detalle"
  },
  "validation": {
-  "images": 16,
+  "images": 48,
   "agree_onnx_fp32": 1.0,
-  "agree_int8": 0.9295,
-  "cpu_ms_fp32": 673,
-  "cpu_ms_int8": 35,
-  "agree_fp16w": 0.9993,
-  "cpu_ms_fp16w": 81
+  "agree_int8": 0.9637,
+  "cpu_ms_fp32": 539,
+  "cpu_ms_int8": 145,
+  "agree_int8_half_res": 0.7633,
+  "agree_fp16w": 0.9995,
+  "cpu_ms_fp16w": 551
  }
 }
