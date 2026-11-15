@@ -88,10 +88,12 @@ describe('rótulos por región (estilo detector)', async () => {
     const size = 8;
     const labels = new Uint8Array(size * size).fill(F);
     for (let y = 0; y < 8; y++) for (let x = 0; x < 4; x++) labels[y * size + x] = y < 4 ? A : S; // mitad izquierda
-    const rs = labelRegions(labels, size, m, 8);
+    const confs = new Uint8Array(size * size).fill(204); // 80 % de confianza
+    const rs = labelRegions(labels, size, m, 8, 0.025, 6, confs);
     expect(rs.map((r) => r.id).sort()).toEqual(['arena', 'suelo']);
     const arena = rs.find((r) => r.id === 'arena');
     expect(arena.share).toBeCloseTo(0.25);
+    expect(arena.conf).toBeCloseTo(0.8); // el rótulo muestra confianza, no área
     expect(arena.x).toBeCloseTo(0.25);
     expect(arena.y).toBeCloseTo(0.25);
   });

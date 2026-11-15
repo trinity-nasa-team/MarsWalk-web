@@ -251,7 +251,7 @@ export default function LiveCamera({ mode = 'camera' }) {
         stamps.push(now);
         while (stamps[0] < now - 2000) stamps.shift();
         const fps = stamps.length > 2 ? ((stamps.length - 1) * 1000) / (now - stamps[0]) : 0;
-        setView({ meta, shares, unclassified, hazards, regions: labelRegions(masked, r.size, meta), fps, ms: Math.round(r.latency), size: r.size, workers: pool.workers });
+        setView({ meta, shares, unclassified, hazards, regions: labelRegions(masked, r.size, meta, 48, 0.025, 6, conf), fps, ms: Math.round(r.latency), size: r.size, workers: pool.workers });
       };
       while (alive) {
         const v = traverse ? feedRef.current : videoRef.current;
@@ -295,7 +295,7 @@ export default function LiveCamera({ mode = 'camera' }) {
             <div className="live-labels">
               {view.regions.map((r, i) => (
                 <span key={`${r.id}-${i}`} style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, background: rgb(r.cls), color: darkText(r.cls) ? '#111' : '#fff' }}>
-                  {className(m, r.id)} {Math.round(r.share * 100)}%
+                  {className(m, r.id)} {Math.round(r.conf * 100)}%
                 </span>
               ))}
             </div>
@@ -403,6 +403,7 @@ export default function LiveCamera({ mode = 'camera' }) {
           </button>
         </div>
 
+        {view && <p className="note">{t('live.legendHelp')}</p>}
         {view && (
           <ul className="live-legend">
             {view.shares
