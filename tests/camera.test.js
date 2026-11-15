@@ -36,7 +36,7 @@ describe('URL de la cámara', () => {
     expect(cameraBase('https://cam.example.com/')).toBe('https://cam.example.com');
     expect(cameraBase('HTTPS://Cam.Example.com')).toBe('https://cam.example.com');
     expect(cameraBase('  http://10.0.0.5:8080  ')).toBe('http://10.0.0.5:8080');
-    for (const bad of ['', undefined, 'javascript:alert(1)', 'cam.example.com', 'https://u:p@cam.example.com', 'https://cam.example.com/x', 'https://cam.example.com/?a=1', 'https://cam.example.com/#x', 'ftp://cam.example.com']) {
+    for (const bad of ['', null, 'javascript:alert(1)', 'cam.example.com', 'https://u:p@cam.example.com', 'https://cam.example.com/x', 'https://cam.example.com/?a=1', 'https://cam.example.com/#x', 'ftp://cam.example.com']) {
       expect(cameraBase(bad), String(bad)).toBe('');
     }
   });

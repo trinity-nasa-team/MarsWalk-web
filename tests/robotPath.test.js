@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SQUARE, fitRoute, insideSquare, nextMove, planToSquare, toXY } from '../src/lib/robotPath.js';
+import { SQUARE, clampToSquare, fitRoute, insideSquare, nextMove, planToSquare, toXY } from '../src/lib/robotPath.js';
 
 const HAB = [77.4509, 18.4446];
 // Ruta de ejemplo (~1.3 km al SO y regreso), con una curva
@@ -61,5 +61,16 @@ describe('siguiente movimiento hacia el objetivo', () => {
   it('elige el giro corto (nunca más de 180°)', () => {
     const m = nextMove({ x: 1, y: 1, heading_deg: 170 }, [1.2, 0.98]);
     expect(Math.abs(m.turn_deg)).toBeLessThanOrEqual(180);
+  });
+});
+
+describe('objetivo acotado al cuadro', () => {
+  it('un punto fuera (regreso o desvío) se lleva al borde interior y el paso queda dentro', () => {
+    const [cx, cy] = clampToSquare([-0.4, 2.6]);
+    expect(cx).toBeCloseTo(0.1);
+    expect(cy).toBeCloseTo(1.9);
+    expect(clampToSquare([1, 1])).toEqual([1, 1]);
+    const m = nextMove({ x: 0.15, y: 1.8, heading_deg: 90 }, clampToSquare([-1, 3]));
+    expect(m === null || insideSquare(m.end)).toBe(true);
   });
 });
