@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   cameraBase,
+  defaultRotation,
   cameraStatus,
   createJitterBuffer,
   createMjpegParser,
@@ -51,8 +52,12 @@ describe('URL de la cámara', () => {
     expect(resolveCameraBase('', '')).toBe('');
   });
 
-  it('rota de 90 en 90', () => {
+  it('rota de 90 en 90 y la rotación por defecto sale de la variable', () => {
     expect([0, 90, 180, 270].map(nextRotation)).toEqual([90, 180, 270, 0]);
+    expect(defaultRotation('90')).toBe(90);
+    expect(defaultRotation('')).toBe(0);
+    expect(defaultRotation(undefined)).toBe(0);
+    expect(defaultRotation('45')).toBe(0);
   });
 });
 

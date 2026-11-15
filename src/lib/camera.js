@@ -67,8 +67,14 @@ export async function cameraStatus(base = resolveCameraBase(), { timeoutMs = 400
   }
 }
 
-/** Rotación guardada por el visitante (0, 90, 180, 270). La cámara del prototipo está montada de lado. */
-export function loadRotation(fallback = 90) {
+/** Rotación por defecto según cómo esté montada la cámara: VITE_CAMERA_ROTATE (0, 90, 180, 270); si no, 0. */
+export function defaultRotation(raw = import.meta.env.VITE_CAMERA_ROTATE) {
+  const v = Number(raw);
+  return [0, 90, 180, 270].includes(v) ? v : 0;
+}
+
+/** Rotación elegida por el visitante (botón Rotar) o la de por defecto. */
+export function loadRotation(fallback = defaultRotation()) {
   try {
     const raw = localStorage.getItem(ROTATE_KEY);
     const v = Number(raw);
