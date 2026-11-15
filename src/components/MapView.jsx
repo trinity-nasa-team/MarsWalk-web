@@ -5,6 +5,7 @@ import * as maplibregl from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useRef } from 'react';
+import { apiUrl } from '../lib/api.js';
 import { easePan, easeView } from '../lib/ease.js';
 import { circle } from '../lib/geo.js';
 import { registerMarsProtocol } from '../lib/marsTiles.js';
@@ -136,7 +137,7 @@ export default function MapView({
       // Detalle HiRISE (ventana procesada alrededor del hábitat), solo de cerca.
       for (const layer of (region.ortho?.layers || []).filter((l) => l.layer_id === 'ortho_hirise')) {
         for (const c of layer.chunks) {
-          map.addSource(`o-${c.id}`, { type: 'image', url: c.url, coordinates: corners(c.bbox) });
+          map.addSource(`o-${c.id}`, { type: 'image', url: apiUrl(c.url), coordinates: corners(c.bbox) });
           map.addLayer({
             id: `o-${c.id}`,
             type: 'raster',
@@ -155,7 +156,7 @@ export default function MapView({
       for (const id of RASTERS) {
         const l = byId[id];
         if (!l) continue;
-        map.addSource(`r-${id}`, { type: 'image', url: l.image_url, coordinates: corners(l.bbox) });
+        map.addSource(`r-${id}`, { type: 'image', url: apiUrl(l.image_url), coordinates: corners(l.bbox) });
         map.addLayer({
           id: `r-${id}`,
           type: 'raster',

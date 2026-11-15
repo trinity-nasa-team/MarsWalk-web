@@ -1,5 +1,5 @@
 // Marswalk: un solo menú de íconos (inicio = menú completo; dentro, riel lateral con los mismos íconos).
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Icon } from './components/Icons.jsx';
 import Marquee from './components/Marquee.jsx';
@@ -8,13 +8,13 @@ import { formatClock } from './lib/geo.js';
 import { useTheme } from './lib/theme.js';
 import { derive } from './state/derived.js';
 import { useRegion, useStore } from './state/store.jsx';
-import CompareView from './views/CompareView.jsx';
-import EarthView from './views/EarthView.jsx';
-import HabitatView from './views/HabitatView.jsx';
-import HudView from './views/HudView.jsx';
-import PlanView from './views/PlanView.jsx';
-import HomeView from './views/HomeView.jsx';
-import FindingsView from './views/FindingsView.jsx';
+const CompareView = lazy(() => import('./views/CompareView.jsx'));
+const EarthView = lazy(() => import('./views/EarthView.jsx'));
+const HabitatView = lazy(() => import('./views/HabitatView.jsx'));
+const HudView = lazy(() => import('./views/HudView.jsx'));
+const PlanView = lazy(() => import('./views/PlanView.jsx'));
+const HomeView = lazy(() => import('./views/HomeView.jsx'));
+const FindingsView = lazy(() => import('./views/FindingsView.jsx'));
 
 const VIEWS = [
   { id: 'home', C: HomeView },
@@ -171,7 +171,11 @@ export default function App() {
                 ))}
               </div>
             )}
-            {region.status === 'ready' && <Current go={go} />}
+            {region.status === 'ready' && (
+              <Suspense fallback={null}>
+                <Current go={go} />
+              </Suspense>
+            )}
           </main>
         </div>
         <Marquee />

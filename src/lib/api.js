@@ -2,6 +2,8 @@
 // URL de la API (repo MarsWalk-v2). Vacío → '/api' (proxy de Vite en dev o rewrite de Vercel).
 const BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '') || '/api';
 export const REGION = 'jezero';
+/** URL absoluta para rutas `/api/...` que devuelve el backend (imágenes de capas y ortomosaico). */
+export const apiUrl = (u) => (typeof u === 'string' && u.startsWith('/api/') ? BASE + u.slice(4) : u);
 
 async function request(path, init, kind = 'json') {
   try {
@@ -32,7 +34,7 @@ export const api = {
   presets: () => request(`/regions/${REGION}/route/presets`),
   traverse: () => request(`/regions/${REGION}/traverse`),
   ortho: () => request(`/regions/${REGION}/ortho`),
-  marsPois: () => fetch('/api/mars/pois').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+  marsPois: () => request('/mars/pois').then((r) => (r.ok ? r.data : null)),
   cell: (lat, lon, region = REGION) => request(`/regions/${region}/cell?lat=${lat}&lon=${lon}`),
   terrainMeta: (region = REGION) => request(`/regions/${region}/terrain-grid`),
   /** 016: región con relieve alrededor de cualquier punto de Marte (Jezero si cae dentro). */
