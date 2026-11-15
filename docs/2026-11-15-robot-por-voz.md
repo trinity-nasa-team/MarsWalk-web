@@ -12,13 +12,13 @@
 - **Web:** `src/lib/robot.js` (reconocimiento de órdenes por reglas, sin IA; envío al túnel; estado compartido).
   - Chat del HUD: «gira a la izquierda», «avanza», «retrocede», «alto» (y en inglés) mueven el robot; las preguntas
     no lo mueven. Responde y lo dice en voz alta si las alertas de voz están activas.
-  - Botones ◀ ▲ ■ ▼ ▶ bajo la cámara (HUD y Hábitat), con confirmación ✓/✗.
+  - (Los botones bajo la cámara se probaron y se quitaron: la tarjeta queda solo con video.)
   - El visor del HUD ya no crece encima de la cámara (el chat hace scroll por dentro).
 
 ## Decisiones
 - Sin PIN: cualquiera que abra la web puede mover el robot (parte de la demo); seguro por los pulsos cortos y el tope.
 - El robot SOLO obedece órdenes explícitas (voz, texto, botones). La ruta simulada de la EVA nunca lo mueve: el espacio de la demo es reducido.
-- Voz del robot: botón 🎤 propio (no el del chat, que se recorre con los mensajes), siempre en inglés (en-US).
+- Las órdenes se dan por el chat del HUD (voz o texto). Se quitaron los botones de la tarjeta de la cámara a pedido del equipo.
 - Sin backend en medio: el endpoint público del backend no daría más protección que la propia Raspberry.
 
 ## Pendiente

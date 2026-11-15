@@ -5,13 +5,11 @@ import { resolveCameraBase } from './camera.js';
 
 export const ROBOT_CMDS = ['forward', 'backward', 'left', 'right', 'stop'];
 
-// La cámara (mismo túnel) avisa si está en vivo: sin robot en línea, el chat no "se come" mensajes.
-let reachable = false;
-export const setRobotReachable = (v) => {
-  reachable = !!v;
-};
-/** Hay robot si hay túnel configurado y la cámara está respondiendo. */
-export const robotAvailable = (search, env) => !!resolveCameraBase(search, env) && reachable;
+/**
+ * Hay robot si hay túnel configurado (mismo de la cámara). Si la Raspberry está caída, la orden falla con aviso.
+ * (El reconocimiento es estricto, así que el chat no toma frases normales como órdenes.)
+ */
+export const robotAvailable = (search, env) => !!resolveCameraBase(search, env);
 
 const norm = (s) =>
   s
@@ -66,15 +64,12 @@ const emit = (s) => {
   listeners.forEach((fn) => fn(s));
 };
 
-/** Suscribirse al estado de la última orden ({ cmd, state: 'sending'|'done'|'error', error, heard }). Devuelve cancelar. */
+/** Suscribirse al estado de la última orden ({ cmd, state: 'sending'|'done'|'error', error }). Devuelve cancelar. */
 export function onRobotStatus(fn) {
   listeners.add(fn);
   fn(last);
   return () => listeners.delete(fn);
 }
-
-/** Avisar que la voz no se entendió como orden (para mostrar qué se escuchó). */
-export const robotHeard = (heard) => emit({ cmd: null, state: 'unknown', heard, at: Date.now() });
 
 export async function robotCommand(cmd, { base = resolveCameraBase(), fetchImpl = globalThis.fetch, timeoutMs = 3000, heard = null } = {}) {
   if (!ROBOT_CMDS.includes(cmd)) return { ok: false, error: 'invalid_cmd' };

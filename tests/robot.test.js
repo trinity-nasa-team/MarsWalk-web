@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { onRobotStatus, parseRobotCommand, robotAvailable, robotCommand, setRobotReachable } from '../src/lib/robot.js';
+import { onRobotStatus, parseRobotCommand, robotAvailable, robotCommand } from '../src/lib/robot.js';
 
 describe('parseRobotCommand (voz o texto → orden)', () => {
   const cases = {
@@ -92,10 +92,7 @@ describe('robotCommand (nunca lanza)', () => {
     expect(await robotCommand('stop', { base: 'https://abc.trycloudflare.com', fetchImpl: down })).toEqual({ ok: false, error: 'unreachable' });
   });
 
-  it('solo hay robot si hay cámara configurada y en vivo', () => {
-    setRobotReachable(false);
-    expect(robotAvailable('', 'https://cam.example')).toBe(false);
-    setRobotReachable(true);
+  it('solo hay robot si hay cámara configurada', () => {
     expect(robotAvailable('', 'https://cam.example')).toBe(true);
     expect(robotAvailable('', '')).toBe(false);
     expect(robotAvailable('?cam=off', 'https://cam.example')).toBe(false);

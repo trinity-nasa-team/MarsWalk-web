@@ -5,9 +5,7 @@
 // Sin URL configurada no se renderiza nada.
 import { useEffect, useRef, useState } from 'react';
 import { createJitterBuffer, createMjpegParser, loadRotation, nextRotation, resolveCamera, saveRotation } from '../lib/camera.js';
-import { onRobotStatus, parseRobotCommand, robotCommand, robotHeard, setRobotReachable } from '../lib/robot.js';
 
-const Recognition = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
 
 const FPS = 15; // ritmo nominal de la cámara (320×240 a 15 FPS en la Raspberry)
 const DELAY_MS = 600; // retraso a cambio de fluidez: absorbe las ráfagas del túnel
@@ -38,41 +36,6 @@ export default function RobotCamera({ t, variant = 'pip' }) {
   const rotationRef = useRef(rotation);
   rotationRef.current = rotation;
   const drawRef = useRef(null);
-  const [robot, setRobot] = useState(null); // última orden al robot
-  useEffect(() => onRobotStatus(setRobot), []);
-  useEffect(() => {
-    setRobotReachable(status === 'live'); // sin cámara en vivo, el chat no toma frases como órdenes
-    return () => setRobotReachable(false);
-  }, [status]);
-  // Hablarle al robot: escucha UNA orden en inglés, la ejecuta y queda listo para la siguiente.
-  const [listening, setListening] = useState(false);
-  const recRef = useRef(null);
-  useEffect(() => () => recRef.current?.abort(), []);
-  const listen = () => {
-    if (!Recognition) return;
-    if (listening) {
-      recRef.current?.stop();
-      return;
-    }
-    const rec = new Recognition();
-    rec.lang = 'en-US';
-    rec.interimResults = false;
-    rec.maxAlternatives = 3;
-    rec.onresult = (e) => {
-      const alts = Array.from(e.results[0]).map((a) => a.transcript);
-      const heard = alts[0] || '';
-      const cmd = alts.map(parseRobotCommand).find(Boolean);
-      if (cmd) robotCommand(cmd, { base, heard });
-      else robotHeard(heard);
-    };
-    rec.onerror = (e) => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') robotHeard(t('chat.micDenied'));
-    };
-    rec.onend = () => setListening(false);
-    recRef.current = rec;
-    setListening(true);
-    rec.start();
-  };
 
   useEffect(() => {
     if (!base || !canStream || !visible) return undefined;
@@ -249,46 +212,6 @@ export default function RobotCamera({ t, variant = 'pip' }) {
               {expanded ? t('cam.collapse') : t('cam.expand')}
             </button>
           )}
-        </span>
-      </div>
-      <div className="robot-ctl" role="group" aria-label={t('robot.title')}>
-        <div className="robot-ctl-head">
-          <span className="caption">{t('robot.title')}</span>
-          {Recognition && (
-            <button type="button" className={`btn robot-ctl-mic ${listening ? 'on' : ''}`} aria-pressed={listening} onClick={listen}>
-              🎤 {listening ? t('robot.listening') : t('robot.speak')}
-            </button>
-          )}
-        </div>
-        <div className="robot-ctl-pad">
-          {[
-            ['left', '◀'],
-            ['forward', '▲'],
-            ['stop', '■'],
-            ['backward', '▼'],
-            ['right', '▶'],
-          ].map(([cmd, glyph]) => (
-            <button
-              key={cmd}
-              type="button"
-              className={`btn robot-ctl-${cmd} ${robot?.cmd === cmd && robot.state === 'sending' ? 'busy' : ''}`}
-              title={t(`robot.say.${cmd}`)}
-              aria-label={t(`robot.say.${cmd}`)}
-              onClick={() => robotCommand(cmd, { base })}
-            >
-              {glyph}
-            </button>
-          ))}
-        </div>
-        <span className={`caption robot-ctl-status ${robot?.state || ''}`} role="status" aria-live="polite">
-          {robot?.heard ? `“${robot.heard}” → ` : ''}
-          {robot?.state === 'unknown'
-            ? t('robot.unknown')
-            : robot?.state === 'error'
-              ? `✗ ${robot.error === 'too_fast' ? t('robot.fast') : t('robot.fail')}`
-              : robot?.cmd
-                ? `${robot.state === 'done' ? '✓' : '…'} ${t(`robot.say.${robot.cmd}`)}`
-                : t('robot.hint')}
         </span>
       </div>
       <p className="robot-cam-note">{t('cam.note')}</p>

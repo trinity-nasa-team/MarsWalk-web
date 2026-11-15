@@ -654,32 +654,20 @@ Object.assign(en, {
 
 // Control del rover REAL (pulsos cortos por el túnel de la cámara).
 Object.assign(es, {
-  'robot.title': 'Mover robot',
   'robot.say.forward': 'Avanzando',
   'robot.say.backward': 'Retrocediendo',
   'robot.say.left': 'Girando a la izquierda',
   'robot.say.right': 'Girando a la derecha',
   'robot.say.stop': 'Deteniendo el robot',
   'robot.fail': 'El robot no respondió',
-  'robot.fast': 'Espera un momento',
-  'robot.hint': 'Pulsa 🎤 y di en inglés: «turn left», «turn right», «go forward», «back up», «stop».',
-  'robot.speak': 'Hablar',
-  'robot.listening': 'Escuchando…',
-  'robot.unknown': 'no es una orden; prueba «turn left» o «stop»',
 });
 Object.assign(en, {
-  'robot.title': 'Move robot',
   'robot.say.forward': 'Moving forward',
   'robot.say.backward': 'Backing up',
   'robot.say.left': 'Turning left',
   'robot.say.right': 'Turning right',
   'robot.say.stop': 'Stopping the robot',
   'robot.fail': 'The robot did not respond',
-  'robot.fast': 'Wait a moment',
-  'robot.hint': 'Press 🎤 and say: “turn left”, “turn right”, “go forward”, “back up”, “stop”.',
-  'robot.speak': 'Speak',
-  'robot.listening': 'Listening…',
-  'robot.unknown': 'not a command; try “turn left” or “stop”',
 });
 
 export const DICTS = { es, en };

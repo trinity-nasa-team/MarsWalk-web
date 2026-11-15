@@ -2097,18 +2097,18 @@ html[data-theme='light'] .hchat-form input { background: #fff; }
 /* Cámara REAL del robot (Raspberry Pi) — HUD (pip) y pestaña Cámara del hábitat (full) */
 .hud-bottom { position: absolute; z-index: 4; left: 14px; bottom: 14px; right: 288px; top: 300px; display: flex; align-items: flex-end; gap: 12px; pointer-events: none; }
 /* La cámara cabe debajo del visor (arriba a la izquierda): el video se encoge, no se encima. */
-.hud-bottom .robot-cam.pip { max-height: 100%; grid-template-rows: auto minmax(0, 1fr) auto auto auto; }
+.hud-bottom .robot-cam.pip { max-height: 100%; grid-template-rows: auto minmax(0, 1fr) auto auto; }
 .hud-bottom .robot-cam.pip .robot-cam-view { min-height: 80px; max-height: 100%; }
 .hud-bottom .robot-cam.pip .robot-cam-media { max-height: 100%; }
 .hud-bottom > * { pointer-events: auto; }
 .hud-bottom .hud-do { position: static; flex: 0 1 360px; }
 .robot-cam { margin: 0; display: grid; gap: 6px; padding: 10px; border-radius: 10px; background: rgb(8 6 10 / 0.88); border: 1px solid var(--slate-800); border-left: 4px solid var(--ground-bright); color: var(--white); }
 .robot-cam.pip { width: 280px; transition: width 0.25s ease; }
-.robot-cam.pip.expanded { width: min(460px, 100%); height: 100%; grid-template-rows: auto minmax(0, 1fr) auto auto auto; }
+.robot-cam.pip.expanded { width: min(460px, 100%); height: 100%; grid-template-rows: auto minmax(0, 1fr) auto auto; }
 /* Agrandada: ocupa a propósito la columna izquierda completa (encima del visor); "Reducir" la regresa. */
 .hud-bottom:has(.robot-cam.expanded) { top: 14px; align-items: stretch; }
 .hud-bottom:has(.robot-cam.expanded) .hud-do { align-self: flex-end; }
-.robot-cam.full { height: 100%; grid-template-rows: auto minmax(0, 1fr) auto auto auto; border-radius: 0; border-width: 0 0 0 4px; }
+.robot-cam.full { height: 100%; grid-template-rows: auto minmax(0, 1fr) auto auto; border-radius: 0; border-width: 0 0 0 4px; }
 .robot-cam-head { min-width: 0; flex-wrap: wrap; display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; }
 .robot-cam-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .robot-cam-live { display: inline-flex; align-items: center; gap: 5px; color: #ff6b6b; }
@@ -2147,24 +2147,8 @@ html[data-theme='light'] .robot-cam-earth { color: #1d5f99; }
 }
 @media (max-height: 640px) { .robot-cam.pip .robot-cam-view, .robot-cam.pip .robot-cam-media { max-height: 180px; } .robot-cam-note { display: none; } }
 
-/* Control del rover real (bajo la cámara) */
-.robot-ctl { display: grid; gap: 5px; padding-top: 6px; border-top: 1px solid var(--slate-800); }
-.robot-ctl-pad { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
-.robot-ctl-pad .btn { min-height: 38px; padding: 0; font-size: 15px; background: rgb(0 0 0 / 0.5); }
-.robot-ctl-pad .btn.robot-ctl-stop { color: #ff8a8a; }
-.robot-ctl-pad .btn.busy { background: var(--white); color: var(--black); }
-.robot-ctl-status { font-size: 10.5px; min-height: 14px; }
-.robot-ctl-status.error { color: #ff8a8a; }
-.robot-ctl-status.done { color: #7ee2a8; }
-html[data-theme='light'] .robot-ctl-pad .btn { background: var(--white); color: var(--black); }
-html[data-theme='light'] .robot-ctl-status.done { color: #1a7f45; }
-html[data-theme='light'] .robot-ctl-status.error { color: #b42318; }
 /* Con la cámara del robot abajo, el visor no crece encima de ella: el chat hace scroll por dentro. */
 .screen:has(.hud-bottom .robot-cam.pip) .hud-intro { max-height: 272px; }
 .screen:has(.hud-bottom .robot-cam.pip.expanded) .hud-intro { max-height: calc(100% - 28px); }
 
-.robot-ctl-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.robot-ctl-mic { min-height: 34px; padding: 0 12px; font-size: 11px; background: rgb(0 0 0 / 0.5); }
-.robot-ctl-mic.on { background: #ff6b6b; color: #000; border-color: #ff6b6b; }
-html[data-theme='light'] .robot-ctl-mic { background: var(--white); color: var(--black); }
-html[data-theme='light'] .robot-ctl-mic.on { background: #b42318; color: #fff; }
+
