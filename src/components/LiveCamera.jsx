@@ -33,6 +33,8 @@ export default function LiveCamera({ mode = 'camera' }) {
   const videoRef = useRef(null);
   const maskRef = useRef(null);
   const stageRef = useRef(null);
+  const mainRef = useRef(null);
+  const [fit, setFit] = useState(null); // tamaño del video que cabe en el espacio disponible, sin deformarlo
   const streamRef = useRef(null);
   const [source, setSource] = useState('camera'); // camera | file
   const [fileUrl, setFileUrl] = useState(null);
@@ -55,6 +57,7 @@ export default function LiveCamera({ mode = 'camera' }) {
 
   // ── Recorrido por Marte: fotos reales de Perseverance ligadas a lo que camina el robot ──────────────────────
   const traverse = mode === 'traverse';
+  const ratio = traverse ? FEED_W / FEED_H : aspect;
   const feedRef = useRef(null);
   const feed = useRef({ start: -1, odo: 0, last: null, idx: -1 });
   const [photos, setPhotos] = useState(null); // null = cargando
@@ -102,6 +105,24 @@ export default function LiveCamera({ mode = 'camera' }) {
       alive = false;
     };
   }, []);
+
+  // Ajusta el video al espacio disponible conservando su proporción (con ventanas pequeñas o zoom alto, el CSS solo
+  // lo deformaba o lo recortaba).
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return undefined;
+    const calc = () => {
+      const cw = el.clientWidth;
+      const ch = el.clientHeight;
+      if (cw < 40 || ch < 40) return;
+      const w = Math.min(cw, ch * ratio);
+      setFit({ w: Math.floor(w), h: Math.floor(w / ratio) });
+    };
+    calc();
+    const ro = new ResizeObserver(calc);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ratio, status]);
 
   const stopStream = () => {
     streamRef.current?.getTracks().forEach((tr) => tr.stop());
@@ -262,8 +283,8 @@ export default function LiveCamera({ mode = 'camera' }) {
 
   return (
     <div className="live" ref={stageRef}>
-      <div className="live-main">
-        <div className="live-stage" style={{ aspectRatio: traverse ? FEED_W / FEED_H : aspect, display: ready ? 'block' : 'none' }}>
+      <div className="live-main" ref={mainRef}>
+        <div className="live-stage" style={{ width: fit?.w, height: fit?.h, display: ready ? 'block' : 'none' }}>
           {traverse ? (
             <canvas ref={feedRef} className="live-feed" width={FEED_W} height={FEED_H} />
           ) : (
