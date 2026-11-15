@@ -61,7 +61,7 @@ export default function Orbits({ delayMin, packets, labels }) {
       ctx.clearRect(0, 0, w, h);
       const cx = w / 2;
       const cy = h / 2;
-      const unit = (Math.min(w, h) / 2 - 36) / MARS_ORBIT_AU; // px por UA
+      const unit = Math.max(1, (Math.min(w, h) / 2 - 36) / MARS_ORBIT_AU); // px por UA (≥1: arc() lanza con radio negativo)
       const spin = reduce ? 0 : now / 60000; // rotación lenta del conjunto
       const theta = separationAngle(d);
       const aE = -Math.PI / 2 + spin;

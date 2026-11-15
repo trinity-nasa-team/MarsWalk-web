@@ -55,6 +55,10 @@ export default function PlanView({ go }) {
   const capture = async () => setCap({ photo: await snapshotMap(mapApi.current) });
   const locked = state.phase !== 'plan';
   const stops = plan.stops;
+  // Clave del plan vigente: si cambia mientras se calculan los tramos, el resultado ya no corresponde.
+  const planKey = JSON.stringify([plan.habitat, stops.map((s) => s.id), plan.preset, plan.regionId]);
+  const planKeyRef = useRef(planKey);
+  planKeyRef.current = planKey;
 
   useEffect(() => {
     if (!plan.habitat && region.landing) dispatch({ type: 'PLAN_SET', patch: { habitat: region.landing } });
@@ -126,6 +130,7 @@ export default function PlanView({ go }) {
   // Un A* exacto por tramo: hábitat → P1 → P2 → … (el regreso se calcula al final de la EVA).
   const compute = async () => {
     setError('');
+    const startKey = planKeyRef.current;
     const legs = [];
     let from = plan.habitat;
     for (let i = 0; i < stops.length; i++) {
@@ -140,6 +145,7 @@ export default function PlanView({ go }) {
       from = stops[i].pos;
     }
     setBusy('');
+    if (planKeyRef.current !== startKey) return; // el usuario editó el plan a mitad del cálculo
     dispatch({ type: 'PLAN_LEGS', legs });
   };
 

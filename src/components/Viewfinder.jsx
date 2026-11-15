@@ -169,6 +169,10 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
         return loop ? new THREE.LineLoop(g, m) : new THREE.Line(g, m);
       };
       const rebuildOverlays = () => {
+        for (const o of overlays.children) {
+          o.geometry.dispose();
+          o.material.dispose();
+        }
         overlays.clear();
         const { hazards: hz, route: rt, routeColor: rc } = live.current;
         if (rt && rt.length > 1) overlays.add(drape(rt, 4, rc));
@@ -214,7 +218,9 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
             overlayKey = '';
             cam.init = false;
           }
-          const key = `${hz.length}:${rt ? rt.length : 0}:${rt && rt[0] ? rt[0].join() : ''}:${origin.join()}`;
+          // El primer punto de la ruta avanza en cada tick: se redondea (~100 m) para no reconstruir la geometría 10 veces/s.
+          const head = rt && rt[0] ? rt[0].map((v) => v.toFixed(3)).join() : '';
+          const key = `${hz.length}:${rt ? rt.length : 0}:${head}:${origin.join()}`;
           if (key !== overlayKey) {
             rebuildOverlays();
             overlayKey = key;
@@ -256,14 +262,22 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
         if (mat.map) mat.map.dispose();
         mat.dispose();
         if (terrain) terrain.geometry.dispose();
+        for (const o of overlays.children) {
+          o.geometry.dispose();
+          o.material.dispose();
+        }
         renderer.dispose();
+        renderer.forceContextLoss(); // libera el contexto WebGL (si no, se acumulan al navegar entre vistas)
         renderer.domElement.remove();
       };
     });
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
-      if (el._cleanup) el._cleanup();
+      if (el._cleanup) {
+        el._cleanup();
+        el._cleanup = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [regionId]);

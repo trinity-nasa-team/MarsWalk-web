@@ -7,7 +7,7 @@ import { useRadiation } from '../lib/radiation.js';
 import MapView from '../components/MapView.jsx';
 import { liveVitals } from '../lib/vitals.js';
 import { eventText } from '../lib/i18n.js';
-import { cardinal, formatKm } from '../lib/geo.js';
+import { cardinal, formatKm, haversine } from '../lib/geo.js';
 import { WALKBACK_M } from '../lib/sim.js';
 import { derive } from '../state/derived.js';
 import { useRegion, useStore } from '../state/store.jsx';
@@ -62,7 +62,7 @@ export default function HudView() {
 
   const rangePct = d ? Math.min(100, (d.toHabitat_m / WALKBACK_M) * 100) : 0;
   const follow = d ? { center: d.astro.pos, bearing: d.astro.bearing, zoom: 13.4, recenter } : null;
-  const dist = (a, b) => (a && b ? Math.hypot((a[0] - b[0]) * 58_000 * Math.cos((b[1] * Math.PI) / 180), (a[1] - b[1]) * 59_300) : null);
+  const dist = (a, b) => (a && b ? haversine(a, b) : null);
   const say = (text) => {
     if (!voice || !('speechSynthesis' in window)) return;
     const u = new SpeechSynthesisUtterance(text);
@@ -95,7 +95,7 @@ export default function HudView() {
     robot_distance_m: d ? Math.round(dist(d.astro.pos, d.robot.pos) ?? 0) : null,
     slope_deg: d?.slope_deg != null ? Math.max(0, Math.abs(d.slope_deg)) : null,
     hazards: eva?.hazards?.length ?? 0,
-    pending_kind: eva?.pending?.request?.kind ?? null,
+    pending_kind: eva?.pending ? 'reroute' : null,
     solar_storm: Boolean(rad?.sep),
     leg: eva?.leg ?? null,
   };

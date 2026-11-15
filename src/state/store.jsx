@@ -33,7 +33,8 @@ export function StoreProvider({ children }) {
       } else if (data.type === 'hello' && s.leader === TAB_ID) {
         ch.postMessage({ type: 'snapshot', from: TAB_ID, state: s });
       } else if (data.type === 'action' && s.leader === TAB_ID) {
-        rawDispatch(data.action);
+        // Una EVA_START reenviada debe conservar a esta pestaña como líder (si no, leader queda undefined y el reloj se detiene).
+        rawDispatch(data.action.type === 'EVA_START' ? { ...data.action, tabId: TAB_ID } : data.action);
       }
     };
     ch.postMessage({ type: 'hello', from: TAB_ID });
@@ -62,8 +63,14 @@ export function StoreProvider({ children }) {
     let last = performance.now();
     const id = setInterval(() => {
       const now = performance.now();
-      rawDispatch({ type: 'TICK', dt: Math.min(0.5, (now - last) / 1000) });
+      // Pestaña en segundo plano: el navegador frena setInterval. Se consume el tiempo real en pasos de ≤0.5 s (tope 60 s).
+      let dt = Math.min(60, (now - last) / 1000);
       last = now;
+      while (dt > 0) {
+        const step = Math.min(0.5, dt);
+        rawDispatch({ type: 'TICK', dt: step });
+        dt -= step;
+      }
     }, 100);
     return () => clearInterval(id);
   }, [state.phase, state.running, state.leader]);
@@ -92,7 +99,8 @@ export function StoreProvider({ children }) {
           route: ok ? routeFromApi(res.data) : null,
           reason: ok ? '' : res.ok ? res.data.reason : res.error.error,
         });
-      });
+      })
+      .catch((e) => rawDispatch({ type: 'ROUTE_RESULT', requestId: req.id, route: null, reason: String(e?.message || e) }));
   }, [state.eva, state.leader, state.plan]);
 
   useEffect(() => {
@@ -136,6 +144,10 @@ export function RegionProvider({ children }) {
         return;
       }
       const jezero = reg.data.find((r) => r.region_id === 'jezero') || reg.data[0];
+      if (!jezero) {
+        setRegion({ status: 'error' });
+        return;
+      }
       setRegion({
         status: 'ready',
         bbox: jezero.bbox,
