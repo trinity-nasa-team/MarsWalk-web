@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// En desarrollo, /api va al backend (repo MarsWalk-v2, uvicorn en :8000; otro destino con API_PROXY_TARGET).
+// En desarrollo, /api va al backend (repo MarsWalk-v3, uvicorn en :8000; otro destino con API_PROXY_TARGET).
 export default defineConfig({
   plugins: [react()],
   server: { port: 5174, proxy: { '/api': process.env.API_PROXY_TARGET || 'http://localhost:8000' } },

@@ -1,5 +1,5 @@
 // Cliente de la API. Nunca lanza: devuelve { ok, data } o { ok: false, error: { error, code } }.
-// URL de la API (repo MarsWalk-v2). Vacío → '/api' (proxy de Vite en dev o rewrite de Vercel).
+// URL de la API (repo MarsWalk-v3). Vacío → '/api' (proxy de Vite en dev o rewrite de Vercel).
 const BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '') || '/api';
 export const REGION = 'jezero';
 /** URL absoluta para rutas `/api/...` que devuelve el backend (imágenes de capas y ortomosaico). */

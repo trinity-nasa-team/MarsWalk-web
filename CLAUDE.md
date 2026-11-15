@@ -1,6 +1,6 @@
 # MarsWalk — Web (frontend)
 
-Frontend de MarsWalk. El backend vive en `trinity-nasa-team/MarsWalk-v2`; las convenciones del proyecto
+Frontend de MarsWalk. El backend vive en `trinity-nasa-team/MarsWalk-v3`; las convenciones del proyecto
 (coordenadas, unidades, fuentes, "No hagas") están en su `CLAUDE.md` y aplican aquí también.
 
 ## Comandos
