@@ -3,7 +3,7 @@
 // indicador que parpadea y flechas para girar la cámara (.6s cubic-bezier(.4,0,.2,1)).
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { api } from '../lib/api.js';
+import { api, apiUrl } from '../lib/api.js';
 import { easePan } from '../lib/ease.js';
 import { MARS_RADIUS_M, cardinal } from '../lib/geo.js';
 import { useRegion, useStore } from '../state/store.jsx';
@@ -111,7 +111,7 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
         ? new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 })
         : new THREE.MeshStandardMaterial({ color: 0x9a9890, roughness: 1, metalness: 0, flatShading: true });
       if (ov) {
-        new THREE.TextureLoader().load(ov.url, (tex) => {
+        new THREE.TextureLoader().load(apiUrl(ov.url), (tex) => {
           if (disposed) return tex.dispose();
           tex.colorSpace = THREE.SRGBColorSpace;
           tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
