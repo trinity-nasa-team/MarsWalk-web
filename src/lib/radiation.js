@@ -46,19 +46,33 @@ function fetchDonki() {
   donki = { status: 'loading', events: [] };
   // El backend consulta NASA CCMC DONKI (caché 1 h) y, si falla, sirve su copia fechada: sin clave en el navegador
   // y sin el límite de DEMO_KEY por IP. status: 'ok' (en vivo) | 'snapshot' (copia) | 'down' (backend caído).
-  api.spaceWeather().then((r) => {
-    const d = r.ok ? r.data : null;
-    donki = d
-      ? {
-          status: d.status === 'live' ? 'ok' : 'snapshot',
-          events: (d.sep || []).map((e) => ({ id: e.id, time: e.time })),
-          asOf: d.as_of,
-          marsCme: d.mars_cme || null,
-          marsCme30d: d.mars_cme_30d ?? 0,
-        }
-      : { status: 'down', events: [] };
-    update();
-  });
+  api
+    .spaceWeather()
+    .then((r) => {
+      const d = r.ok ? r.data : null;
+      donki = d && STATUS[d.status] ? parseDonki(d) : { status: 'down', events: [] };
+    })
+    .catch(() => {
+      donki = { status: 'down', events: [] }; // forma inesperada: nunca dejar el panel en "consultando…"
+    })
+    .then(update);
+}
+
+const STATUS = { live: 'ok', snapshot: 'snapshot' }; // cualquier otro status del backend (p. ej. 'down') → down
+
+/** Resumen del backend → estado del panel. Exportado para las pruebas. */
+export function parseDonki(d) {
+  const asOf = d.as_of;
+  const cme = d.mars_cme || null;
+  // La llegada modelada puede ser posterior a `as_of` (CME reciente): se muestra como prevista, no como ocurrida.
+  const pending = !!(cme && cme.arrival && asOf && Date.parse(cme.arrival) > Date.parse(asOf));
+  return {
+    status: STATUS[d.status],
+    events: (Array.isArray(d.sep) ? d.sep : []).map((e) => ({ id: e.id, time: e.time })),
+    asOf,
+    marsCme: cme && { ...cme, pending },
+    marsCme30d: d.mars_cme_30d ?? 0,
+  };
 }
 
 export function useSpaceWeather() {

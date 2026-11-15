@@ -128,8 +128,12 @@ export function RadiationReadout({ rad, t }) {
       {rad.donki.marsCme !== undefined && (
         <div className="gauge-hint">
           {rad.donki.marsCme
-            ? t(rad.donki.marsCme.glancing ? 'rad.marsCmeGlancing' : 'rad.marsCme', { date: rad.donki.marsCme.arrival?.slice(0, 10), n: rad.donki.marsCme30d })
+            ? t(rad.donki.marsCme.pending ? 'rad.marsCmePending' : rad.donki.marsCme.glancing ? 'rad.marsCmeGlancing' : 'rad.marsCme', {
+                date: rad.donki.marsCme.arrival?.slice(0, 10) ?? '—',
+                n: rad.donki.marsCme30d,
+              })
             : t('rad.marsCmeNone')}
+          {rad.donki.status === 'snapshot' && ` · ${t('rad.marsCmeSnapshot', { date: rad.donki.asOf?.slice(0, 10) })}`}
         </div>
       )}
     </div>
