@@ -432,19 +432,39 @@ export default function MapView({
   }, [fitTo]);
 
   // Seguir al astronauta (HUD): track-up con paneo suave [CoM].
+  // Rendimiento (revisión 14 nov): `follow` cambia en cada tick (10 Hz). Antes, mientras el mapa cargaba se
+  // registraba un listener 'marswalk:ready' por tick (cientos de jumpTo acumulados) y cada tick lanzaba un
+  // easeTo que cancelaba al anterior: el navegador se congelaba 1–5 min. Ahora: un solo listener que aplica la
+  // última posición, como mucho 4 actualizaciones/s, nada si el movimiento es < ~1 m y sin pisar una animación.
+  const followReady = useRef(false);
+  const lastFollowAt = useRef(0);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !follow || !follow.center) return;
     if (!ready.current) {
       lastFollow.current = follow;
-      map.once('marswalk:ready', () => map.jumpTo({ center: follow.center, zoom: follow.zoom ?? 13.2, bearing: follow.bearing }));
+      if (!followReady.current) {
+        followReady.current = true;
+        map.once('marswalk:ready', () => {
+          const f = lastFollow.current;
+          if (f?.center) map.jumpTo({ center: f.center, zoom: f.zoom ?? 13.2, bearing: f.bearing });
+        });
+      }
       return;
     }
     const prev = lastFollow.current;
+    const recentered = !prev || follow.recenter !== prev.recenter;
+    const now = performance.now();
+    if (!recentered && now - lastFollowAt.current < 250) return;
+    const moved = prev ? Math.hypot(follow.center[0] - prev.center[0], follow.center[1] - prev.center[1]) : Infinity;
+    const turn = Math.abs(((follow.bearing - map.getBearing() + 540) % 360) - 180);
+    if (!recentered && moved < 1e-5 && turn <= 8) return;
     lastFollow.current = follow;
-    const turn = prev ? Math.abs(((follow.bearing - map.getBearing() + 540) % 360) - 180) : 0;
-    if (!prev || follow.recenter !== prev.recenter) {
+    lastFollowAt.current = now;
+    if (recentered) {
       map.easeTo({ center: follow.center, zoom: follow.zoom ?? 13.2, bearing: follow.bearing, duration: 600, easing: easePan });
+    } else if (map.isEasing()) {
+      return; // deja terminar la animación en curso
     } else if (turn > 8) {
       map.easeTo({ center: follow.center, bearing: follow.bearing, duration: 600, easing: easePan });
     } else {

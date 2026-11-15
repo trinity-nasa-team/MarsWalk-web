@@ -90,7 +90,7 @@ export default function HabitatView({ go }) {
         {cap && <CaptureModal photo={cap.photo} pos={d.astro.pos} simTime_s={state.simTime_s} t={t} onClose={() => setCap(null)} />}
         <div className="map-overlay-caption caption">
           <span className="blink" />
-          <span style={{ color: 'var(--white)' }}>{t('nav.habitat')} · LIVE</span>
+          <span style={{ color: 'var(--white)' }}>{t('nav.habitat')} · SIMULATED</span>
           <span className="tag verified" style={{ color: ground ? 'var(--ground-bright)' : 'var(--orbit-bright)' }}>
             {ground ? t('hab.newRoute') : 'A* · orbital'}
           </span>

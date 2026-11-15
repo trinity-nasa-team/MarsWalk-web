@@ -196,13 +196,13 @@ export default function CompareView() {
                   <div className="caption">{t('cmp.nsga')}</div>
                   <div className="kpi-big" style={{ color: COLORS.nsga }}>{formatKm(res.nsga.total)}</div>
                   <div className="kpi-sub">
-                    {Math.abs(pct(res.nsga.total, res.real.total))}% {res.nsga.total <= res.real.total ? t('cmp.shorterBy') : t('cmp.longerBy')}
+                    {t('cmp.planNote')}
                   </div>
                 </div>
                 <div className="kpi">
                   <div className="caption">{t('cmp.real')}</div>
                   <div className="kpi-big" style={{ color: COLORS.real }}>{formatKm(res.real.total)}</div>
-                  <div className="kpi-sub">odómetro NASA/JPL</div>
+                  <div className="kpi-sub">{t('cmp.odo')}</div>
                 </div>
               </div>
               <BarChart
