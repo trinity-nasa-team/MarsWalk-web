@@ -83,6 +83,7 @@ export function routeFromApi(r) {
     sand_m: r.sand_m ?? null,
     energy_wh: r.energy_wh ?? null,
     o2_l: r.o2_l ?? null,
+    est_time_h: r.est_time_h ?? null,
   };
 }
 
@@ -158,7 +159,9 @@ function detectHazard(state, auto) {
       ...eva,
       hazards,
       state: 'hold',
-      autoHazardDone: eva.autoHazardDone || auto,
+      // Un solo peligro por EVA: si el operador lo reporta a mano (robot físico), ya no cae el automático después.
+      // Antes, tras aprobar, llegaba un segundo peligro y la EVA quedaba en espera si nadie lo aprobaba.
+      autoHazardDone: true,
       request: { id: reqId, kind: 'reroute', from: p.astro.pos, to: legTarget(state), hazards },
     },
   };

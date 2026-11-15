@@ -13,6 +13,7 @@ import { api } from '../lib/api.js';
 import { formatKm, haversine } from '../lib/geo.js';
 import { combineLegs } from '../lib/legs.js';
 import { LAYER_INFO } from '../lib/marsTiles.js';
+import { explainList } from '../lib/explain.js';
 import { MAX_STOPS, routeFromApi, WALK_KMH, WALKBACK_M } from '../lib/sim.js';
 import { useRegion, useStore } from '../state/store.jsx';
 
@@ -428,7 +429,7 @@ export default function PlanView({ go }) {
                 </div>
               </div>
               <div style={{ height: 110, marginTop: 12 }}>
-                <Profile profile={summary.profile} />
+                <Profile profile={summary.profile} t={t} />
               </div>
               <ol className="legs">
                 {plan.legs.map((l, i) => (
@@ -440,7 +441,7 @@ export default function PlanView({ go }) {
                 ))}
               </ol>
               <ul className="explain">
-                {summary.explanations.map((x, i) => (
+                {explainList(summary.explanations, t).map((x, i) => (
                   <li key={i}>{x}</li>
                 ))}
               </ul>

@@ -1,5 +1,5 @@
 // Perfil de elevación de la ruta con la posición actual.
-export default function Profile({ profile, at_m, total_m }) {
+export default function Profile({ profile, at_m, total_m, t }) {
   if (!profile || profile.length < 2) return null;
   const W = 600;
   const H = 140;
@@ -29,8 +29,8 @@ export default function Profile({ profile, at_m, total_m }) {
         )}
       </svg>
       <div className="row caption" style={{ marginTop: 4 }}>
-        <span>{Math.round(lo)} m</span>
-        <span>{Math.round(hi)} m</span>
+        <span>{t ? `${t('m.elevMin')} ` : ''}{Math.round(lo)} m</span>
+        <span>{t ? `${t('m.elevMax')} ` : ''}{Math.round(hi)} m</span>
       </div>
     </div>
   );
