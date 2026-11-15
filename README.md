@@ -4,7 +4,7 @@ Interfaz de MarsWalk (NASA Space Apps 2026, reto *Interplanetary Survival Guide:
 en el cráter Jezero, HUD del astronauta, hábitat, enlace con la Tierra y comparación con el recorrido de Perseverance.
 
 - **Stack:** React 19 · Vite 8 · MapLibre GL 6 · three.js · Vitest
-- **Backend (API):** repo [`trinity-nasa-team/MarsWalk-v2`](https://github.com/trinity-nasa-team/MarsWalk-v2) (FastAPI + planificador)
+- **Backend (API):** repo [`trinity-nasa-team/MarsWalk-v3`](https://github.com/trinity-nasa-team/MarsWalk-v3) (FastAPI + planificador), desplegado en `https://marswalk-v3.vercel.app/api`. `MarsWalk-v2` quedó deprecated el 2026-11-15.
 
 Este repo salió de `MarsWalk-v2/marswalk/` el 2026-11-14 con su historial (`git subtree split`).
 
@@ -14,7 +14,7 @@ Requisitos: Node ≥ 22.12 y **pnpm** (no npm).
 
 ```bash
 pnpm install
-# 1) Levanta el backend en otra terminal (repo MarsWalk-v2): uvicorn marsmap.api.main:app --app-dir src --env-file .env
+# 1) Levanta el backend en otra terminal (repo MarsWalk-v3): uvicorn marsmap.api.main:app --app-dir src --env-file .env
 # 2) Levanta la web:
 pnpm dev          # http://localhost:5174 — /api va por proxy a http://localhost:8000
 ```
