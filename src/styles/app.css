@@ -2146,3 +2146,9 @@ html[data-theme='light'] .robot-cam-earth { color: #1d5f99; }
   .robot-cam-note { display: none; }
 }
 @media (max-height: 640px) { .robot-cam.pip .robot-cam-view, .robot-cam.pip .robot-cam-media { max-height: 180px; } .robot-cam-note { display: none; } }
+
+/* IA de rocas sobre la cámara del robot (RockAI): el overlay ocupa la misma celda que el canvas de la cámara */
+.robot-cam-view > .robot-cam-media { grid-area: 1 / 1; }
+.robot-cam-rocks { grid-area: 1 / 1; pointer-events: none; }
+.robot-cam-rocks-tag { position: absolute; left: 6px; bottom: 6px; max-width: calc(100% - 12px); padding: 2px 7px; border-radius: 4px; font-family: var(--font-mono); font-size: 10.5px; background: rgb(0 0 0 / 0.65); color: #ffe14a; }
+.robot-cam-rocks-tag.err { color: #ff9a9a; white-space: normal; }
