@@ -105,7 +105,16 @@
  ],
  "metrics": {
   "test_miou": 0.776,
-  "split": "test"
+  "split": "test",
+  "miou_ci95": [
+   0.706,
+   0.819
+  ],
+  "acc": 0.929,
+  "iou_sand": 0.774,
+  "test_images": 800,
+  "cpu_ms_ref": 228,
+  "best_for": "detalle"
  },
  "validation": {
   "images": 16,

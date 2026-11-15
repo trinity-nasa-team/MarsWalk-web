@@ -7,34 +7,70 @@ import { api } from '../lib/api.js';
 import { easePan } from '../lib/ease.js';
 import { MARS_RADIUS_M, cardinal, haversine } from '../lib/geo.js';
 import { useSegmentation } from '../lib/useSegmentation.js';
-import { colorize, VISION_MODELS } from '../lib/vision.js';
+import { colorize, loadMeta, VISION_MODELS } from '../lib/vision.js';
 import { canDetect } from '../lib/sim.js';
 import { useRegion, useStore } from '../state/store.jsx';
 
 const EXAG = 3; // exageración vertical (se declara en pantalla)
 
 // Fotos reales de la Hazcam de Perseverance a lo largo de su recorrido (MarsWalk-v2/scripts/fetch_robot_photos.py).
-const PHOTO_BASE = '/img/robotcam';
+const FEED_DIRS = ['/img/robotfeed'];
+const FEED_W = 768; // tamaño de los cuadros de la Hazcam (4:3)
+const FEED_H = 576;
+export const FEED_STEP_M = 60; // metros que camina el robot por cuadro del feed
+const ZOOM = 0.16; // acercamiento a lo largo de un cuadro (sensación de avance)
+const FADE = 0.25; // último 25 % del tramo: fundido al siguiente cuadro
+
+/** Índice (con fracción) del cuadro del feed: arranca en el cuadro más cercano al robot y avanza con lo que camina. */
+export function feedPosition(startIdx, odometer_m, n) {
+  if (!n) return { idx: 0, next: 0, t: 0 };
+  const f = startIdx + odometer_m / FEED_STEP_M;
+  const idx = Math.floor(f) % n;
+  return { idx, next: (idx + 1) % n, t: f - Math.floor(f) };
+}
 let photoIndex = null;
 function loadPhotos() {
-  photoIndex ??= fetch(`${PHOTO_BASE}/index.json`)
-    .then((r) => (r.ok ? r.json() : { photos: [] }))
-    .then((d) => d.photos || [])
-    .catch(() => []);
+  photoIndex ??= (async () => {
+    for (const dir of FEED_DIRS) {
+      try {
+        const r = await fetch(`${dir}/index.json`);
+        if (!r.ok) continue;
+        const ps = (await r.json()).photos || [];
+        if (ps.length) return ps.map((p) => ({ ...p, url: `${dir}/${p.file}` }));
+      } catch {
+        /* siguiente carpeta */
+      }
+    }
+    return [];
+  })();
   return photoIndex;
 }
 /** Foto más cercana a la posición [lon, lat] y su distancia en metros. */
 export function nearestPhoto(photos, pos) {
   let best = null;
   let bd = Infinity;
-  for (const p of photos) {
+  let bi = -1;
+  photos.forEach((p, i) => {
     const d = haversine(pos, [p.lon, p.lat]);
     if (d < bd) {
       bd = d;
       best = p;
+      bi = i;
     }
+  });
+  return best ? { ...best, dist_m: bd, index: bi } : null;
+}
+
+const imgCache = new Map();
+function frameImage(file) {
+  if (!imgCache.has(file)) {
+    const im = new Image();
+    im.decoding = 'async';
+    im.src = file;
+    imgCache.set(file, im);
+    if (imgCache.size > 40) imgCache.delete(imgCache.keys().next().value);
   }
-  return best ? { ...best, dist_m: bd } : null;
+  return imgCache.get(file);
 }
 const HALF_CELLS = 45; // ventana de ~18 km alrededor del robot
 const MAST_M = 2; // altura de la cámara sobre el suelo (mástil)
@@ -84,6 +120,46 @@ function sampler(grid) {
 }
 
 
+/** Métricas del modelo elegido (del informe de entrenamiento) y en qué es mejor frente al otro. */
+function ModelCard({ meta, other, liveMs, t }) {
+  const m = meta.metrics;
+  const o = other?.metrics;
+  const f2 = (v) => v.toFixed(2);
+  const rows = [
+    [t('vis.m.miou'), m.miou_strict != null ? `${f2(m.miou_strict)}–${f2(m.test_miou)}` : f2(m.test_miou), o && (o.miou_strict != null ? `${f2(o.miou_strict)}–${f2(o.test_miou)}` : f2(o.test_miou))],
+    [t('vis.m.acc'), m.acc_strict != null ? `${f2(m.acc_strict)}–${f2(m.acc)}` : f2(m.acc), o && (o.acc_strict != null ? `${f2(o.acc_strict)}–${f2(o.acc)}` : f2(o.acc))],
+    [t('vis.m.sand'), m.iou_sand_strict != null ? `${f2(m.iou_sand_strict)}–${f2(m.iou_sand)}` : f2(m.iou_sand), o && (o.iou_sand_strict != null ? `${f2(o.iou_sand_strict)}–${f2(o.iou_sand)}` : f2(o.iou_sand))],
+    [t('vis.m.classes'), String(meta.classes.length), other && String(other.classes.length)],
+    [t('vis.m.speed'), liveMs != null ? `${liveMs} ms` : `~${m.cpu_ms_ref} ms`, o && `~${o.cpu_ms_ref} ms`],
+  ];
+  return (
+    <div className="vf-model-card">
+      <table>
+        <thead>
+          <tr>
+            <th />
+            <th>{meta.name}</th>
+            {other && <th>{other.name}</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([k, a, b]) => (
+            <tr key={k}>
+              <td>{k}</td>
+              <td>
+                <b>{a}</b>
+              </td>
+              {other && <td>{b}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p>{t(`vis.best.${meta.id}`)}</p>
+      <p className="vf-seg-note">{t('vis.m.note')}</p>
+    </div>
+  );
+}
+
 export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x96d2ff, sol, regionId = 'jezero' }) {
   const { t, lang, state, dispatch } = useStore();
   const region = useRegion();
@@ -94,7 +170,9 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
   // Fuente de la cámara: foto real más cercana (por defecto) o render 3D del relieve.
   const [camMode, setCamMode] = useState('photo');
   const [photos, setPhotos] = useState(null); // null = cargando
-  const photoRef = useRef(null);
+  const feedRef = useRef(null);
+  const feed = useRef({ start: -1, odo: 0, last: null, idx: -1 });
+  const [frame, setFrame] = useState(null); // cuadro visible (para el crédito)
   useEffect(() => {
     let alive = true;
     loadPhotos().then((p) => alive && setPhotos(p));
@@ -102,12 +180,74 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
       alive = false;
     };
   }, []);
-  const photo = camMode === 'photo' && robot?.pos && photos?.length ? nearestPhoto(photos, robot.pos) : null;
-  const photoMode = !!photo;
+  const photoMode = camMode === 'photo' && !!robot?.pos && !!photos?.length;
+
+  // Odómetro del robot: el feed avanza un cuadro cada FEED_STEP_M metros caminados (pausa = video en pausa).
+  useEffect(() => {
+    if (!photoMode) return;
+    const f = feed.current;
+    const pos = robot.pos;
+    const jump = f.last ? haversine(f.last, pos) : Infinity;
+    if (f.start < 0 || jump > 500) {
+      f.start = nearestPhoto(photos, pos).index; // nueva EVA o salto: resincroniza con la foto más cercana
+      f.odo = 0;
+    } else {
+      f.odo += jump;
+    }
+    f.last = pos;
+  }, [photoMode, photos, robot?.pos]);
+
+  // Dibuja el feed a ~30 cuadros/s: cuadro actual con acercamiento lento y fundido al siguiente.
+  useEffect(() => {
+    if (!photoMode) return undefined;
+    let raf = 0;
+    let lastDraw = 0;
+    const draw = (now) => {
+      raf = requestAnimationFrame(draw);
+      if (now - lastDraw < 33 || document.hidden) return;
+      lastDraw = now;
+      const cv = feedRef.current;
+      if (!cv) return;
+      const f = feed.current;
+      const { idx, next, t: tt } = feedPosition(Math.max(0, f.start), f.odo, photos.length);
+      const a = frameImage(photos[idx].url);
+      const b = frameImage(photos[next].url);
+      frameImage(photos[(next + 1) % photos.length].url); // precarga
+      if (idx !== f.idx) {
+        f.idx = idx;
+        setFrame(photos[idx]);
+      }
+      const ctx = cv.getContext('2d');
+      const put = (im, z, alpha) => {
+        if (!im.complete || !im.naturalWidth) return;
+        const w = FEED_W * z;
+        const h = FEED_H * z;
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(im, (FEED_W - w) / 2, (FEED_H - h) * 0.6, w, h); // se acerca hacia el horizonte
+      };
+      put(a, 1 + ZOOM * tt, 1);
+      if (tt > 1 - FADE) put(b, 1, (tt - (1 - FADE)) / FADE);
+      ctx.globalAlpha = 1;
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [photoMode, photos]);
+  const photo = photoMode && frame ? { ...frame, dist_m: haversine(robot.pos, [frame.lon, frame.lat]) } : null;
   const photosLoading = camMode === 'photo' && photos === null;
   const [segOpacity, setSegOpacity] = useState(0.5);
   // La IA solo corre sobre fotos reales: sobre el render gris los modelos no reconocen nada (todo salía «arena»).
-  const seg = useSegmentation(() => photoRef.current, photoMode ? segModel : null);
+  const seg = useSegmentation(() => feedRef.current, photoMode ? segModel : null);
+  // Metadatos de ambos modelos para la lista desplegable y la tarjeta de métricas.
+  const [metas, setMetas] = useState({});
+  useEffect(() => {
+    let alive = true;
+    Promise.all(VISION_MODELS.map((m) => loadMeta(m).catch(() => null))).then((ms) => {
+      if (alive) setMetas(Object.fromEntries(VISION_MODELS.map((m, i) => [m, ms[i]])));
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   // Imagen real (CTX + color Viking) como textura: solo existe procesada para Jezero.
   const overview = regionId === 'jezero' ? region?.ortho?.overview || null : null;
   const overviewRef = useRef(overview);
@@ -337,9 +477,16 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
     const cv = maskRef.current;
     const r = seg.res;
     if (!cv || !r) return;
-    cv.width = r.size;
-    cv.height = r.size;
-    cv.getContext('2d').putImageData(new ImageData(colorize(r.labels, r.meta.colors), r.size, r.size), 0, 0);
+    // La IA ve el cuadro reducido a S×S; la máscara se devuelve al tamaño 4:3 del feed para que calce.
+    const tmp = document.createElement('canvas');
+    tmp.width = r.size;
+    tmp.height = r.size;
+    tmp.getContext('2d').putImageData(new ImageData(colorize(r.labels, r.meta.colors), r.size, r.size), 0, 0);
+    cv.width = FEED_W;
+    cv.height = FEED_H;
+    const c = cv.getContext('2d');
+    c.imageSmoothingEnabled = false;
+    c.drawImage(tmp, 0, 0, FEED_W, FEED_H);
   }, [seg.res]);
   useEffect(() => () => (glRef.current = null), []);
 
@@ -352,12 +499,10 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
   return (
     <div ref={box} className={`viewfinder ${photoMode ? 'photo-mode' : ''}`}>
       <div className="vf-frame">
-        {photoMode && (
-          <img key={photo.file} ref={photoRef} className="vf-photo" src={`${PHOTO_BASE}/${photo.file}`} alt={t('vis.photoAlt', { sol: photo.sol })} />
-        )}
+        {photoMode && <canvas ref={feedRef} className="vf-photo" width={FEED_W} height={FEED_H} aria-label={photo ? t('vis.photoAlt', { sol: photo.sol }) : ''} />}
         <canvas ref={maskRef} className="vf-seg-mask" style={{ opacity: segRes ? segOpacity : 0 }} aria-hidden="true" />
         {photosLoading && <div className="vf-loading caption">{t('vis.photosLoading')}</div>}
-        {photoMode && segModel && <div key={`${photo.file}:${segModel}:${segRes ? 1 : 0}`} className={`vf-scan ${segRes ? 'done' : ''}`} aria-hidden="true" />}
+        {photoMode && segModel && <div className="vf-scan" aria-hidden="true" />}
       </div>
       <div className="vf-overlay">
         <div className="vf-seg">
@@ -365,7 +510,7 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
             <span>{t('vis.live')}</span>
             {seg.status === 'loading' && <span>{t('vis.loading')}</span>}
             {seg.status === 'error' && <span className="warn">{t('vis.error')}</span>}
-            {seg.status === 'live' && segRes && (photoMode ? <span>{segRes.ms} ms</span> : <span>{t('vis.fps', { fps: (seg.fps ?? 0).toFixed(1), ms: segRes.ms })}</span>)}
+            {seg.status === 'live' && segRes && <span>{t('vis.fps', { fps: (seg.fps ?? 0).toFixed(1), ms: segRes.ms })}</span>}
           </div>
           <div className="chips" role="radiogroup" aria-label={t('vis.cam')}>
             {['photo', 'render'].map((m) => (
@@ -374,13 +519,24 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
               </button>
             ))}
           </div>
-          <div className="chips" role="radiogroup" aria-label={t('vis.model')}>
-            {[null, ...VISION_MODELS].map((m) => (
-              <button key={m || 'off'} disabled={!photoMode} type="button" className="chip" role="radio" aria-checked={segModel === m} aria-pressed={segModel === m} onClick={() => setSegModel(m)}>
-                {m === 'ai4mars' ? 'AI4Mars' : m === 's5mars' ? 'S5Mars' : t('vis.off')}
-              </button>
-            ))}
-          </div>
+          <label className="vf-seg-select">
+            <span className="caption">{t('vis.model')}</span>
+            <select value={segModel || ''} disabled={!photoMode} onChange={(e) => setSegModel(e.target.value || null)}>
+              <option value="">{t('vis.off')}</option>
+              {VISION_MODELS.map((m) => {
+                const mm = metas[m]?.metrics;
+                return (
+                  <option key={m} value={m}>
+                    {metas[m]?.name || m}
+                    {mm ? ` · mIoU ${mm.test_miou.toFixed(2)} · ${t('vis.class.arena').toLowerCase()} ${mm.iou_sand.toFixed(2)}` : ''}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+          {photoMode && segModel && metas[segModel] && (
+            <ModelCard meta={metas[segModel]} other={metas[segModel === 'ai4mars' ? 's5mars' : 'ai4mars']} liveMs={segRes?.ms} t={t} />
+          )}
           {!photoMode && <p className="vf-seg-note">{t('vis.renderOff')}</p>}
           {photoMode && segModel && (
             <input className="vf-seg-opacity" type="range" min="0.1" max="1" step="0.05" value={segOpacity} aria-label={t('vis.opacity')} onChange={(e) => setSegOpacity(+e.target.value)} />
@@ -402,11 +558,7 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
             </button>
           )}
           {photoMode && segModel && <p className="vf-seg-note">{t('vis.photoNote')}</p>}
-          {photoMode && (
-            <p className="vf-seg-note">
-              {t('vis.photoCredit', { sol: photo.sol, dist: Math.round(photo.dist_m) })}
-            </p>
-          )}
+          {photo && <p className="vf-seg-note">{t('vis.photoCredit', { sol: photo.sol, dist: Math.round(photo.dist_m) })}</p>}
         </div>
         <div className="vf-caption caption">
           <span className="blink" />
@@ -431,7 +583,7 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
         </div>
         <div className="vf-meta caption">
           <span>{heading != null ? `${Math.round(heading)}° ${cardinal(heading, lang)}` : '—'}</span>
-          <span>{photoMode ? `Perseverance · Front Hazcam · sol ${photo.sol} · NASA/JPL-Caltech` : status === 'error' ? 'NO DEM' : t('hab.vfNote')}</span>
+          <span>{photo ? `Perseverance · Front Hazcam · sol ${photo.sol} · NASA/JPL-Caltech` : status === 'error' ? 'NO DEM' : t('hab.vfNote')}</span>
           {sol != null && <span>{sol}</span>}
         </div>
       </div>

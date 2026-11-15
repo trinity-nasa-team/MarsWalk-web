@@ -2098,19 +2098,13 @@ html[data-theme='light'] .hchat-form input { background: #fff; }
 .vf-frame { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .viewfinder.photo-mode .vf-frame { background: #000; }
 .viewfinder.photo-mode > canvas { visibility: hidden; }
-.vf-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: vf-photo-in 0.6s ease-out; filter: contrast(1.05) saturate(1.1); }
-@keyframes vf-photo-in { from { opacity: 0; transform: scale(1.03); } to { opacity: 1; transform: none; } }
+.viewfinder canvas.vf-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: contrast(1.05) saturate(1.1); }
 .viewfinder canvas.vf-seg-mask { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transition: opacity 0.3s; mix-blend-mode: normal; }
 .viewfinder.photo-mode canvas.vf-seg-mask { object-fit: cover; }
 /* Barrido de escaneo: la línea baja mientras la IA procesa; al terminar, revela la máscara de arriba abajo */
 .vf-scan { position: absolute; inset: 0; pointer-events: none; }
-.vf-scan::before { content: ''; position: absolute; left: 0; right: 0; height: 2px; top: 0; background: linear-gradient(90deg, transparent, #7ef0ff, transparent); box-shadow: 0 0 18px 4px rgba(126, 240, 255, 0.55); animation: vf-scan-line 1.4s ease-in-out infinite; }
-.vf-scan.done::before { animation: vf-scan-line 0.9s ease-out 1 forwards; }
-.vf-scan.done { animation: vf-scan-fade 0.4s ease-out 0.9s forwards; }
+.vf-scan::before { content: ''; position: absolute; left: 0; right: 0; height: 2px; top: 0; background: linear-gradient(90deg, transparent, #7ef0ff, transparent); box-shadow: 0 0 18px 4px rgba(126, 240, 255, 0.45); opacity: 0.7; animation: vf-scan-line 2.4s linear infinite; }
 @keyframes vf-scan-line { from { top: 0; } to { top: 100%; } }
-@keyframes vf-scan-fade { to { opacity: 0; } }
-.viewfinder.photo-mode .vf-frame:has(.vf-scan.done) canvas.vf-seg-mask { animation: vf-mask-reveal 0.9s ease-out; }
-@keyframes vf-mask-reveal { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
 .vf-seg { position: absolute; right: 12px; top: 10px; width: 230px; padding: 10px; border-radius: 10px; background: rgba(10, 10, 12, 0.72); pointer-events: auto; display: grid; gap: 8px; font-size: 12.5px; }
 .vf-seg-head { display: flex; justify-content: space-between; gap: 6px; color: var(--white); }
 .vf-seg-head .warn { color: var(--ground-bright, #ffd28c); }
@@ -2127,3 +2121,14 @@ html[data-theme='light'] .hchat-form input { background: #fff; }
 .vf-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--white); background: #000; }
 .viewfinder:has(.vf-loading) > canvas { visibility: hidden; }
 .viewfinder.photo-mode .cross { display: none; }
+
+.vf-seg-select { display: grid; gap: 4px; }
+.vf-seg-select select { width: 100%; padding: 6px 8px; border-radius: 8px; background: #16161a; color: var(--white); border: 1px solid var(--slate-700, #444); font: inherit; font-size: 12.5px; }
+.vf-model-card { display: grid; gap: 6px; }
+.vf-model-card table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.vf-model-card th { text-align: right; font-weight: 500; color: var(--slate-400); padding: 2px 4px; }
+.vf-model-card td { padding: 2px 4px; text-align: right; color: var(--slate-400); }
+.vf-model-card td:first-child { text-align: left; }
+.vf-model-card td b { color: var(--white); font-weight: 600; }
+.vf-model-card p { margin: 0; font-size: 12px; line-height: 1.35; }
+.vf-seg { max-height: calc(100% - 20px); overflow: auto; width: 260px; }

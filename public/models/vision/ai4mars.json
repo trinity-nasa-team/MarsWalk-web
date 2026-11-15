@@ -76,7 +76,15 @@
  ],
  "metrics": {
   "test_miou": 0.811,
-  "split": "test_min3"
+  "split": "test_min3",
+  "miou_strict": 0.669,
+  "acc": 0.983,
+  "acc_strict": 0.923,
+  "iou_sand": 0.95,
+  "iou_sand_strict": 0.864,
+  "test_images": 322,
+  "cpu_ms_ref": 90,
+  "best_for": "arena"
  },
  "validation": {
   "images": 16,

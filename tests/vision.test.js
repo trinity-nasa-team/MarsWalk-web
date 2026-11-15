@@ -86,3 +86,17 @@ describe('cámara del robot: foto real más cercana', async () => {
     expect(nearestPhoto([], [77.4, 18.4])).toBeNull();
   });
 });
+
+describe('feed de video del robot', async () => {
+  const { feedPosition, FEED_STEP_M } = await import('../src/components/Viewfinder.jsx');
+  it('avanza un cuadro cada FEED_STEP_M metros y da la fracción para el fundido', () => {
+    expect(feedPosition(5, 0, 100)).toEqual({ idx: 5, next: 6, t: 0 });
+    const p = feedPosition(5, FEED_STEP_M * 2.5, 100);
+    expect(p.idx).toBe(7);
+    expect(p.t).toBeCloseTo(0.5);
+  });
+  it('da la vuelta al final de la secuencia', () => {
+    expect(feedPosition(99, FEED_STEP_M, 100).idx).toBe(0);
+    expect(feedPosition(0, 0, 0)).toEqual({ idx: 0, next: 0, t: 0 });
+  });
+});

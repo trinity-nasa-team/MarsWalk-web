@@ -10,6 +10,12 @@
 > aterrizaje, `public/img/robotcam/`, generadas con `MarsWalk-v2/scripts/fetch_robot_photos.py`), con transición al
 > cambiar y barrido de escaneo al segmentar. La IA **solo corre sobre fotos reales**; en "Render 3D" se apaga (sobre
 > el render gris todo salía "arena"). Ej. medido: S5Mars sobre sol 13 → roca madre 67 %, roca suelta 26 %, suelo 4 %.
+> **Feed de video (misma fecha):** la cámara reproduce como video la secuencia real de la Hazcam de Perseverance
+> (106 cuadros, 2 por sol, puntos cada ≥120 m, `public/img/robotfeed/`): arranca en el cuadro más cercano al robot y
+> avanza uno cada 60 m que camina (acercamiento + fundido; en pausa si la simulación se pausa). La IA predice sobre el
+> feed en bucle (AI4Mars ≈ 2.2 cuadros/s, S5Mars ≈ 0.7). Modelo en **lista desplegable** con mIoU e IoU de arena, y
+> tarjeta comparativa (mIoU, exactitud, IoU arena, clases, ms en vivo) con la recomendación: AI4Mars para arena,
+> S5Mars para detalle. Métricas de cada informe en su propio test: comparación orientativa.
 > Lo de abajo describe la primera versión (pestaña aparte) y queda como historial.
 
 ## Qué se hizo
