@@ -124,7 +124,7 @@ const es = {
   'earth.mars': 'Marte',
 
   'ev.start': 'EVA iniciada: {total} paradas, primera {name}',
-  'ev.hazard': 'Robot: arena blanda simulada a {ahead_m} m (radio {radius_m} m). La órbita no la ve.',
+  'ev.hazard': 'Robot: arena blanda simulada a {ahead_m} m (radio {radius_m} m). Los mapas de pendiente no la marcan.',
   'ev.reroute': 'Ruta recalculada: {old_m} m → {new_m} m. Espera aprobación.',
   'ev.approved': 'Hábitat aprobó la ruta corregida',
   'ev.noroute': 'Sin ruta alrededor del peligro: regreso al hábitat',
@@ -318,7 +318,7 @@ const en = {
   'earth.mars': 'Mars',
 
   'ev.start': 'EVA started: {total} stops, first {name}',
-  'ev.hazard': 'Scout: simulated soft sand {ahead_m} m ahead (radius {radius_m} m). Orbit cannot see it.',
+  'ev.hazard': 'Scout: simulated soft sand {ahead_m} m ahead (radius {radius_m} m). Slope maps don’t flag it.',
   'ev.reroute': 'Route recomputed: {old_m} m → {new_m} m. Awaiting approval.',
   'ev.approved': 'Habitat approved the corrected route',
   'ev.noroute': 'No route around the hazard: returning to habitat',
