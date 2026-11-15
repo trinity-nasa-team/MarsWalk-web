@@ -123,8 +123,15 @@ export function RadiationReadout({ rad, t }) {
         <span style={{ left: `${rad.uvPct}%` }} />
       </div>
       <div className="gauge-hint">
-        {t(rad.sep ? 'rad.srcSep' : 'rad.src')} · {t(`rad.donki.${rad.donki.status}`, { n: rad.donki.events.length })}
+        {t(rad.sep ? 'rad.srcSep' : 'rad.src')} · {t(`rad.donki.${rad.donki.status}`, { n: rad.donki.events.length, date: rad.donki.asOf?.slice(0, 10) })}
       </div>
+      {rad.donki.marsCme !== undefined && (
+        <div className="gauge-hint">
+          {rad.donki.marsCme
+            ? t(rad.donki.marsCme.glancing ? 'rad.marsCmeGlancing' : 'rad.marsCme', { date: rad.donki.marsCme.arrival?.slice(0, 10), n: rad.donki.marsCme30d })
+            : t('rad.marsCmeNone')}
+        </div>
+      )}
     </div>
   );
 }

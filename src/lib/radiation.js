@@ -9,6 +9,7 @@
 //  · UV con Sol en el cénit, τ = 0.1: UV-B+C 13.2 W/m², UV-A 41.5 W/m² (Tierra: 1.86 y 52.81) — Cockell et al. 2000,
 //    Icarus 146, Tabla I (modelo). Atenuación por polvo: −90 % de τ≈1 a τ≈8.5 (REMS, tormenta global 2018).
 import { useEffect, useSyncExternalStore } from 'react';
+import { api } from './api.js';
 
 export const RAD_BASE_uGy_DAY = 210;
 export const RAD_BASE_uSv_DAY = 640;
@@ -43,20 +44,21 @@ const update = () => {
 function fetchDonki() {
   if (donki.status !== 'idle') return;
   donki = { status: 'loading', events: [] };
-  const end = new Date();
-  const start = new Date(end.getTime() - 3 * 86400e3);
-  const d = (x) => x.toISOString().slice(0, 10);
-  const key = import.meta.env.VITE_NASA_API_KEY || 'DEMO_KEY';
-  fetch(`https://api.nasa.gov/DONKI/SEP?startDate=${d(start)}&endDate=${d(end)}&api_key=${key}`)
-    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-    .then((list) => {
-      donki = { status: 'ok', events: Array.isArray(list) ? list.map((e) => ({ id: e.sepID, time: e.eventTime })) : [] };
-      update();
-    })
-    .catch(() => {
-      donki = { status: 'down', events: [] };
-      update();
-    });
+  // El backend consulta NASA CCMC DONKI (caché 1 h) y, si falla, sirve su copia fechada: sin clave en el navegador
+  // y sin el límite de DEMO_KEY por IP. status: 'ok' (en vivo) | 'snapshot' (copia) | 'down' (backend caído).
+  api.spaceWeather().then((r) => {
+    const d = r.ok ? r.data : null;
+    donki = d
+      ? {
+          status: d.status === 'live' ? 'ok' : 'snapshot',
+          events: (d.sep || []).map((e) => ({ id: e.id, time: e.time })),
+          asOf: d.as_of,
+          marsCme: d.mars_cme || null,
+          marsCme30d: d.mars_cme_30d ?? 0,
+        }
+      : { status: 'down', events: [] };
+    update();
+  });
 }
 
 export function useSpaceWeather() {

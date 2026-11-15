@@ -459,7 +459,8 @@ Object.assign(es, {
   'rad.srcSep': 'Simulado · tormenta de ref. 20 may 2024 (8,100 µGy, NASA/JPL)',
   'rad.sepAlert': 'Tormenta solar: termina la EVA y vuelve al hábitat en ≤ 2 h (regla de la demo)',
   'rad.donkiSep': 'NASA DONKI reporta un evento SEP ({date}) cerca de la Tierra; su efecto en Marte no está confirmado',
-  'rad.donki.idle': 'DONKI: —', 'rad.donki.loading': 'DONKI: consultando…', 'rad.donki.ok': 'NASA DONKI: {n} SEP en 72 h', 'rad.donki.down': 'NASA DONKI no disponible',
+  'rad.donki.idle': 'DONKI: —', 'rad.donki.loading': 'DONKI: consultando…', 'rad.donki.ok': 'NASA DONKI: {n} SEP en 72 h (cerca de la Tierra)', 'rad.donki.snapshot': 'NASA DONKI (copia del {date}): {n} SEP en 72 h (cerca de la Tierra)', 'rad.donki.down': 'NASA DONKI no disponible',
+  'rad.marsCme': 'Última CME con llegada a Marte: {date} (modelada, WSA-ENLIL) · {n} en 30 días', 'rad.marsCmeGlancing': 'Última CME con llegada a Marte: {date}, roce (modelada, WSA-ENLIL) · {n} en 30 días', 'rad.marsCmeNone': 'Sin CME con llegada modelada a Marte en 30 días (NASA DONKI)',
   'hud.do.sep': 'Tormenta solar: regresa al hábitat ahora',
 });
 Object.assign(en, {
@@ -478,7 +479,8 @@ Object.assign(en, {
   'rad.srcSep': 'Simulated · reference storm May 20 2024 (8,100 µGy, NASA/JPL)',
   'rad.sepAlert': 'Solar storm: end the EVA and return to habitat within 2 h (demo rule)',
   'rad.donkiSep': 'NASA DONKI reports an SEP event ({date}) near Earth; its effect at Mars is not confirmed',
-  'rad.donki.idle': 'DONKI: —', 'rad.donki.loading': 'DONKI: querying…', 'rad.donki.ok': 'NASA DONKI: {n} SEP in 72 h', 'rad.donki.down': 'NASA DONKI unavailable',
+  'rad.donki.idle': 'DONKI: —', 'rad.donki.loading': 'DONKI: querying…', 'rad.donki.ok': 'NASA DONKI: {n} SEP in 72 h (near Earth)', 'rad.donki.snapshot': 'NASA DONKI (copy from {date}): {n} SEP in 72 h (near Earth)', 'rad.donki.down': 'NASA DONKI unavailable',
+  'rad.marsCme': 'Latest CME reaching Mars: {date} (modelled, WSA-ENLIL) · {n} in 30 days', 'rad.marsCmeGlancing': 'Latest CME reaching Mars: {date}, glancing blow (modelled, WSA-ENLIL) · {n} in 30 days', 'rad.marsCmeNone': 'No CME with modelled Mars arrival in 30 days (NASA DONKI)',
   'hud.do.sep': 'Solar storm: return to habitat now',
 });
 Object.assign(es, {
