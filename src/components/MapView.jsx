@@ -24,9 +24,36 @@ const GLOBAL = [
 
 const EMPTY = { type: 'FeatureCollection', features: [] };
 let introDone = false; // el vuelo de entrada solo la primera vez por sesión (017)
+
+// Un solo mapa para toda la app (congelamiento, revisión 14 nov). Crear un mapa nuevo en cada vista abría un
+// contexto WebGL nuevo; compilar sus shaders y subir las imágenes bloqueaba el hilo principal 20-30 s en GPUs
+// integradas (perfil de CPU: getProgramParameter/getUniformBlockIndex). Ahora el mapa se crea una vez por región
+// y su contenedor se mueve a la vista que lo monta. Si dos vistas lo piden a la vez, la segunda usa uno propio.
+let shared = null; // { key, map, el, busy }
+const regionKey = (r) => JSON.stringify([r.bbox, (r.layers || []).map((l) => l.layer_id), (r.ortho?.layers || []).map((l) => l.layer_id)]);
 const RASTERS = ['hillshade', 'slope', 'traversability', 'sand'];
 const RASTER_OPACITY = { hillshade: 1, slope: 0.6, traversability: 0.45, sand: 1 };
 const FADE = { duration: 600, delay: 0 }; // [CoM] .6s
+
+// Prende/apaga una capa. Apagada va con visibility 'none' (no solo opacidad 0): así MapLibre no descarga
+// ni sube a la GPU sus imágenes/teselas. Con opacidad 0 se procesaban todas en cada montaje del mapa y el
+// hilo principal se bloqueaba 20-60 s (texSubImage2D + compilación de shaders) al entrar a Habitat/HUD.
+const offTimers = new WeakMap();
+function setLayerOn(map, id, on, opacity) {
+  if (!map.getLayer(id)) return;
+  const timers = offTimers.get(map) || offTimers.set(map, {}).get(map);
+  clearTimeout(timers[id]);
+  if (on) {
+    map.setLayoutProperty(id, 'visibility', 'visible');
+    map.setPaintProperty(id, 'raster-opacity', opacity);
+  } else {
+    map.setPaintProperty(id, 'raster-opacity', 0);
+    // deja terminar el desvanecimiento antes de ocultarla del todo
+    timers[id] = setTimeout(() => {
+      if (map.getLayer(id) && map.getPaintProperty(id, 'raster-opacity') === 0) map.setLayoutProperty(id, 'visibility', 'none');
+    }, FADE.duration + 50);
+  }
+}
 const C = {
   orbit: 'rgb(150,210,255)',
   orbitMid: 'rgb(70,150,240)',
@@ -100,8 +127,62 @@ export default function MapView({
   useEffect(() => {
     const region = regionRef.current;
     const [w, s, e, n] = region.bbox;
+    const key = regionKey(region);
+    const onLoaded = () => {
+      ready.current = true;
+    };
+    const ro = new ResizeObserver(() => mapRef.current?.resize());
+    const attach = (map, el, own) => {
+      box.current.appendChild(el);
+      mapRef.current = map;
+      if (apiRef) apiRef.current = map;
+      map.__owner.clickRef = clickRef;
+      ready.current = !!map.__loaded;
+      if (!map.__loaded) map.once('marswalk:ready', onLoaded);
+      ro.observe(box.current);
+      return () => {
+        ro.disconnect();
+        map.off('marswalk:ready', onLoaded);
+        ready.current = false;
+        for (const m of stopMarkers.current) m.remove();
+        for (const m of Object.values(markers.current)) m.remove();
+        stopMarkers.current = [];
+        markers.current = {};
+        map.__owner.hover?.remove();
+        if (map.__owner.clickRef === clickRef) map.__owner.clickRef = null;
+        if (own) {
+          map.stop();
+          el.remove();
+          shared.busy = false;
+        } else map.remove();
+      };
+    };
+    if (shared && !shared.busy && shared.key === key) {
+      // Reusar: mismo encuadre inicial que un mapa nuevo (región completa, norte arriba).
+      shared.busy = true;
+      const { map, el } = shared;
+      const cleanup = attach(map, el, true);
+      map.resize();
+      const cam = map.cameraForBounds(
+        [
+          [w, s],
+          [e, n],
+        ],
+        { padding: 20 },
+      );
+      if (cam) map.jumpTo({ ...cam, bearing: 0, pitch: 0 });
+      return cleanup;
+    }
+    if (shared && !shared.busy) {
+      shared.map.remove(); // otra región: se descarta el mapa anterior
+      shared = null;
+    }
+    const own = !shared;
+    const el = document.createElement('div');
+    el.className = 'map-gl';
+    box.current.appendChild(el);
     const map = new maplibregl.Map({
-      container: box.current,
+      container: el,
       style: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#4a3328' } }] }, // tono medio de Marte: sin cuadros negros mientras cargan
       fadeDuration: 120,
       bounds: [
@@ -115,14 +196,13 @@ export default function MapView({
       minZoom: 1,
       renderWorldCopies: true,
     });
-    mapRef.current = map;
-    if (apiRef) apiRef.current = map;
+    map.__owner = { clickRef, hover: null };
     map.on('load', () => {
       // Todo Marte: imagen real + capas científicas globales, pedidas al vuelo según la vista.
       // Base de baja resolución (z <= 4, pocas teselas y en caché): cubre al instante mientras llega el detalle.
       const marsOn0 = layersRef.current.ortho !== false;
       map.addSource('g-base', { type: 'raster', tiles: ['mars://color/{z}/{x}/{y}'], tileSize: 256, maxzoom: 4 });
-      map.addLayer({ id: 'g-base', type: 'raster', source: 'g-base', paint: { 'raster-opacity': marsOn0 ? 1 : 0, 'raster-fade-duration': 0 } });
+      map.addLayer({ id: 'g-base', type: 'raster', source: 'g-base', layout: { visibility: marsOn0 ? 'visible' : 'none' }, paint: { 'raster-opacity': marsOn0 ? 1 : 0, 'raster-fade-duration': 0 } });
       for (const g of GLOBAL) {
         const on0 = g.id === 'mars' ? marsOn0 : !!layersRef.current[g.id];
         map.addSource(`g-${g.id}`, { type: 'raster', tiles: [`mars://${g.layer}/{z}/{x}/{y}`], tileSize: 256, maxzoom: g.maxzoom });
@@ -130,6 +210,7 @@ export default function MapView({
           id: `g-${g.id}`,
           type: 'raster',
           source: `g-${g.id}`,
+          layout: { visibility: on0 ? 'visible' : 'none' },
           // opacidad inicial ya correcta (antes arrancaba en 0 y se fundía desde negro)
           paint: { 'raster-opacity': on0 ? g.opacity : 0, 'raster-opacity-transition': FADE, 'raster-fade-duration': g.id === 'mars' ? 0 : 150 },
         });
@@ -143,6 +224,7 @@ export default function MapView({
             type: 'raster',
             source: `o-${c.id}`,
             minzoom: 11,
+            layout: { visibility: 'none' },
             paint: {
               'raster-opacity': 0,
               'raster-opacity-transition': FADE,
@@ -161,6 +243,7 @@ export default function MapView({
           id: `r-${id}`,
           type: 'raster',
           source: `r-${id}`,
+          layout: { visibility: 'none' },
           paint: { 'raster-opacity': 0, 'raster-opacity-transition': FADE, 'raster-fade-duration': 0, 'raster-resampling': 'linear' },
         });
       }
@@ -243,7 +326,7 @@ export default function MapView({
           'circle-radius-transition': { duration: 200, delay: 0 }, // [CoM] .2s
         },
       });
-      ready.current = true;
+      map.__loaded = true;
       map.fire('marswalk:ready');
 
       // Entrada: de órbita al cráter, 3 s con la curva de cambio de vista [CoM].
@@ -264,13 +347,15 @@ export default function MapView({
       }
     });
     const hover = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: 'map-tip', offset: 10 });
+    map.__owner.hover = hover;
+    const clickCb = () => map.__owner.clickRef?.current;
     const hitAt = (pt) => (map.getLayer('pois') ? map.queryRenderedFeatures(pt, { layers: ['pois', 'ez', 'iau'] }) : []);
     map.on('click', (ev) => {
       const hit = hitAt(ev.point);
       const poi = hit.find((f) => f.layer.id === 'pois');
       const named = hit.find((f) => f.layer.id === 'ez' || f.layer.id === 'iau');
       const pos = named ? named.geometry.coordinates : [ev.lngLat.lng, ev.lngLat.lat];
-      clickRef.current?.({
+      clickCb()?.({
         pos,
         poiId: poi?.properties?.poi_id ?? null,
         feature: named ? { name: named.properties.name, kind: named.layer.id, type: named.properties.type || '' } : null,
@@ -278,7 +363,7 @@ export default function MapView({
     });
     map.on('mousemove', (ev) => {
       const hit = hitAt(ev.point);
-      map.getCanvas().style.cursor = hit.length ? 'pointer' : clickRef.current ? 'crosshair' : '';
+      map.getCanvas().style.cursor = hit.length ? 'pointer' : clickCb() ? 'crosshair' : '';
       const f = hit.find((x) => x.layer.id === 'ez' || x.layer.id === 'iau' || x.layer.id === 'pois');
       if (!f) return hover.remove();
       const el = document.createElement('div');
@@ -290,15 +375,8 @@ export default function MapView({
       hover.setLngLat(f.geometry.coordinates).setDOMContent(el).addTo(map);
     });
     map.on('mouseout', () => hover.remove());
-    const ro = new ResizeObserver(() => map.resize());
-    ro.observe(box.current);
-    return () => {
-      ro.disconnect();
-      ready.current = false;
-      stopMarkers.current = [];
-      markers.current = {};
-      map.remove();
-    };
+    if (own) shared = { key, map, el, busy: true };
+    return attach(map, el, own);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -331,18 +409,17 @@ export default function MapView({
       onReady((map) => {
         const lo = layersRef.current;
         const marsOn = lo.ortho !== false;
-        if (map.getLayer('g-base')) map.setPaintProperty('g-base', 'raster-opacity', marsOn ? 1 : 0);
+        setLayerOn(map, 'g-base', marsOn, 1);
         for (const g of GLOBAL) {
           const on = g.id === 'mars' ? marsOn : !!lo[g.id];
-          map.setPaintProperty(`g-${g.id}`, 'raster-opacity', on ? g.opacity : 0);
+          setLayerOn(map, `g-${g.id}`, on, g.opacity);
         }
         const hiriseOn = marsOn && lo.hirise !== false;
         for (const id of orthoLayerIds(region.ortho)) {
-          if (map.getLayer(id)) map.setPaintProperty(id, 'raster-opacity', hiriseOn ? 1 : 0);
+          setLayerOn(map, id, hiriseOn, 1);
         }
         for (const id of RASTERS) {
-          if (!map.getLayer(`r-${id}`)) continue;
-          map.setPaintProperty(`r-${id}`, 'raster-opacity', lo[id] ? RASTER_OPACITY[id] : 0);
+          setLayerOn(map, `r-${id}`, !!lo[id], RASTER_OPACITY[id]);
         }
         map.getSource('traverse').setData(lo.traverse && region.traverse ? region.traverse : EMPTY);
         const pt = (q, props) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [q.lon, q.lat] }, properties: props });
@@ -464,7 +541,7 @@ export default function MapView({
     lastFollowAt.current = now;
     if (recentered) {
       map.easeTo({ center: follow.center, zoom: follow.zoom ?? 13.2, bearing: follow.bearing, duration: 600, easing: easePan });
-    } else if (map.isEasing()) {
+    } else if (map.isMoving()) {
       return; // deja terminar la animación en curso
     } else if (turn > 8) {
       map.easeTo({ center: follow.center, bearing: follow.bearing, duration: 600, easing: easePan });
