@@ -31,9 +31,9 @@ export default function HudView() {
   const [recenter, setRecenter] = useState(0);
   const [help, setHelp] = useState(() => {
     try {
-      return localStorage.getItem('marswalk.hudHelp') !== '0';
+      return localStorage.getItem('marswalk.hudHelp') === '1'; // cerrada por defecto: no tapa el mapa ni el estado
     } catch {
-      return true;
+      return false;
     }
   });
   useEffect(() => {

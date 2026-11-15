@@ -57,7 +57,7 @@ export default function CompareView() {
     const orderLegs = [];
     for (let i = 1; i < ordered.length; i++) {
       setBusy(t('cmp.busyA', { n: i, total: ordered.length - 1 }));
-      const r = await api.route({ from: ordered[i - 1].pos, to: ordered[i].pos, preset: 'safe', legacy: true });
+      const r = await api.route({ from: ordered[i - 1].pos, to: ordered[i].pos, preset: 'safe', legacy: true }); // A* legado a propósito: el genético (NSGA-II) solo existe ahí; mezclar daría cifras incomparables
       if (!(r.ok && r.data.status === 'ok')) {
         setBusy('');
         return setError(`${ordered[i].name}: ${r.ok ? r.data.reason : r.error.error}`);
@@ -196,7 +196,7 @@ export default function CompareView() {
                   <div className="caption">{t('cmp.nsga')}</div>
                   <div className="kpi-big" style={{ color: COLORS.nsga }}>{formatKm(res.nsga.total)}</div>
                   <div className="kpi-sub">
-                    {t('cmp.planNote')}
+                    {t('cmp.planNote')} {t('cmp.legacyNote')}
                   </div>
                 </div>
                 <div className="kpi">

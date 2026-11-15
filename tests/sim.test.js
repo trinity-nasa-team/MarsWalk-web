@@ -84,6 +84,13 @@ describe('ciclo de la EVA', () => {
     expect(s.running).toBe(false);
   });
 
+  it('un peligro reportado a mano evita el automático después (A1: la EVA no queda en espera)', () => {
+    let s = run(planned(), 2);
+    s = reducer(s, { type: 'ROBOT_DETECT' });
+    expect(s.eva.state).toBe('hold');
+    expect(s.eva.autoHazardDone).toBe(true);
+  });
+
   it('no se puede reportar peligro cerca del destino', () => {
     let s = planned();
     s = { ...s, eva: { ...s.eva, autoHazardDone: true, progress_m: 3500 } };

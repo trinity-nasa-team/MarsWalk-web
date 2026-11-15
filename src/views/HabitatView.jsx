@@ -12,7 +12,7 @@ import Profile from '../components/Profile.jsx';
 import Viewfinder from '../components/Viewfinder.jsx';
 import { eventText } from '../lib/i18n.js';
 import { cardinal, formatClock, formatKm } from '../lib/geo.js';
-import { canDetect, ROBOT_LEAD_M, WALKBACK_M } from '../lib/sim.js';
+import { canDetect, ROBOT_LEAD_M, WALKBACK_M, WALK_KMH } from '../lib/sim.js';
 import { derive } from '../state/derived.js';
 import { useRegion, useStore } from '../state/store.jsx';
 
@@ -187,8 +187,18 @@ export default function HabitatView({ go }) {
                 <div className="approval big">
                   <div className="caption" style={{ color: 'var(--ground-bright)' }}>{t('hud.pending')}</div>
                   <div className="compare">
-                    <Metric label={t('hab.oldRest')} value={formatKm(d.remaining_m)} cls="orbit" />
+                    <Metric label={t(eva.route.origin === 'ground' ? 'hab.curRest' : 'hab.oldRest')} value={formatKm(d.remaining_m)} cls="orbit" />
                     <Metric label={t('hab.newRoute')} value={formatKm(eva.pending.total)} cls="ground" />
+                  </div>
+                  {/* Costo-beneficio del desvío: metros y minutos extra (a la velocidad de la simulación) y O₂ del tramo nuevo
+                      según el modelo metabólico del planificador v4 (Pandolf + Santee a 0.38 g), si la API lo trae. */}
+                  <div className="gauge-hint" style={{ marginTop: 8 }}>
+                    {t('hab.cost', {
+                      m: `${eva.pending.total - d.remaining_m >= 0 ? '+' : '−'}${Math.round(Math.abs(eva.pending.total - d.remaining_m))}`,
+                      min: `${eva.pending.total - d.remaining_m >= 0 ? '+' : '−'}${Math.round(Math.abs(eva.pending.total - d.remaining_m) / 1000 / WALK_KMH * 60)}`,
+                      kmh: WALK_KMH,
+                    })}
+                    {eva.pending.o2_l != null && ` · ${t('hab.costO2', { l: Math.round(eva.pending.o2_l) })}`}
                   </div>
                   <button type="button" className="btn approve block" onClick={() => dispatch({ type: 'APPROVE' })}>
                     <span className="pulse-dot" />
