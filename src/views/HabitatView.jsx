@@ -155,15 +155,15 @@ export default function HabitatView({ go }) {
           {tab === 'camera' && (
             <div className="tab-camera">
               <div className="tab-camera-bar chips" role="radiogroup">
-                {['live', 'sim'].map((m) => (
+                {['live', 'traverse', 'sim'].map((m) => (
                   <button key={m} type="button" className="chip" role="radio" aria-checked={camSrc === m} aria-pressed={camSrc === m} onClick={() => setCamSrc(m)}>
                     {t(`live.src.${m}`)}
                   </button>
                 ))}
               </div>
               <div className="tab-camera-view">
-                {camSrc === 'live' ? (
-                  <LiveCamera />
+                {camSrc !== 'sim' ? (
+                  <LiveCamera key={camSrc} mode={camSrc === 'traverse' ? 'traverse' : 'camera'} />
                 ) : (
                   <Viewfinder regionId={state.plan.regionId} robot={d.robot} hazards={eva.hazards} route={d.aheadOfRobot} routeColor={routeColor} sol={`T+${formatClock(state.simTime_s)}`} />
                 )}

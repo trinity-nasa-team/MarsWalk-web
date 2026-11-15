@@ -3,7 +3,10 @@
 // sale de aquí. Un grupo de Web Workers (onnxruntime-web, WASM) procesa cuadros alternos en paralelo; el video
 // se ve a su velocidad nativa y la máscara se actualiza encima con suavizado temporal.
 import { useEffect, useRef, useState } from 'react';
+import { haversine } from '../lib/geo.js';
 import { canDetect } from '../lib/sim.js';
+import { advanceFeed, drawFeed, FEED_H, FEED_W, loadPhotos } from '../lib/traverseFeed.js';
+import { derive } from '../state/derived.js';
 import {
   classShares,
   colorizeConf,
@@ -24,7 +27,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const HAZARD_WINDOW = 6; // un peligro se confirma si aparece en ≥ 4 de los últimos 6 cuadros
 const HAZARD_NEED = 4;
 
-export default function LiveCamera() {
+/** mode: 'camera' = cámara del robot (o video); 'traverse' = recorrido por Marte (fotos reales de Perseverance). */
+export default function LiveCamera({ mode = 'camera' }) {
   const { t, lang, state, dispatch } = useStore();
   const videoRef = useRef(null);
   const maskRef = useRef(null);
@@ -41,12 +45,53 @@ export default function LiveCamera() {
   const [thr, setThr] = useState(0.6);
   const [opacity, setOpacity] = useState(0.65);
   const [smooth, setSmooth] = useState(true);
+  const [standardize, setStandardize] = useState(true);
   const [paused, setPaused] = useState(false);
   const [aspect, setAspect] = useState(16 / 9);
   const [metas, setMetas] = useState({});
   const [view, setView] = useState(null);
   const live = useRef({});
-  live.current = { thr, smooth, paused, opacity };
+  live.current = { thr, smooth, paused, opacity, standardize };
+
+  // ── Recorrido por Marte: fotos reales de Perseverance ligadas a lo que camina el robot ──────────────────────
+  const traverse = mode === 'traverse';
+  const feedRef = useRef(null);
+  const feed = useRef({ start: -1, odo: 0, last: null, idx: -1 });
+  const [photos, setPhotos] = useState(null); // null = cargando
+  const [frame, setFrame] = useState(null);
+  const robotPos = traverse ? derive(state)?.robot?.pos : null;
+  useEffect(() => {
+    if (!traverse) return undefined;
+    let alive = true;
+    loadPhotos().then((p) => {
+      if (!alive) return;
+      setPhotos(p);
+      if (p.length) setStatus('live');
+    });
+    return () => {
+      alive = false;
+    };
+  }, [traverse]);
+  useEffect(() => {
+    if (traverse && photos?.length && robotPos) advanceFeed(feed.current, photos, robotPos);
+  }, [traverse, photos, robotPos]);
+  useEffect(() => {
+    if (!traverse || !photos?.length) return undefined;
+    let raf = 0;
+    let lastDraw = 0;
+    const draw = (now) => {
+      raf = requestAnimationFrame(draw);
+      if (now - lastDraw < 40 || document.hidden || !feedRef.current) return;
+      lastDraw = now;
+      const idx = drawFeed(feedRef.current, photos, feed.current);
+      if (idx !== feed.current.idx) {
+        feed.current.idx = idx;
+        setFrame(photos[idx]);
+      }
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [traverse, photos, status]);
 
   useEffect(() => {
     let alive = true;
@@ -188,12 +233,12 @@ export default function LiveCamera() {
         setView({ meta, shares, unclassified, hazards, regions: labelRegions(masked, r.size, meta), fps, ms: Math.round(r.latency), size: r.size, workers: pool.workers });
       };
       while (alive) {
-        const v = videoRef.current;
-        if (!v || v.readyState < 2 || document.hidden || live.current.paused) {
+        const v = traverse ? feedRef.current : videoRef.current;
+        if (!v || (v.tagName === 'VIDEO' && v.readyState < 2) || document.hidden || live.current.paused) {
           await sleep(80);
           continue;
         }
-        const p = pool.run(v, size); // toma el cuadro ahora; null = todos los workers ocupados
+        const p = pool.run(v, size, { standardize: live.current.standardize, white_balance: live.current.standardize || undefined }); // toma el cuadro ahora; null = todos los workers ocupados
         if (!p) {
           await sleep(2);
           continue;
@@ -206,7 +251,7 @@ export default function LiveCamera() {
       alive = false;
       pool.close();
     };
-  }, [status, model, quality]);
+  }, [status, model, quality, traverse]);
 
   const className = (m, id) => (lang === 'en' ? m.classes_en[m.classes.indexOf(id)] : t(`vis.class.${id}`));
   const fullscreen = () => (document.fullscreenElement ? document.exitFullscreen() : stageRef.current?.requestFullscreen?.());
@@ -218,8 +263,12 @@ export default function LiveCamera() {
   return (
     <div className="live" ref={stageRef}>
       <div className="live-main">
-        <div className="live-stage" style={{ aspectRatio: aspect, display: ready ? 'block' : 'none' }}>
-          <video ref={videoRef} muted playsInline autoPlay onLoadedMetadata={(e) => setAspect(e.currentTarget.videoWidth / e.currentTarget.videoHeight || 16 / 9)} />
+        <div className="live-stage" style={{ aspectRatio: traverse ? FEED_W / FEED_H : aspect, display: ready ? 'block' : 'none' }}>
+          {traverse ? (
+            <canvas ref={feedRef} className="live-feed" width={FEED_W} height={FEED_H} />
+          ) : (
+            <video ref={videoRef} muted playsInline autoPlay onLoadedMetadata={(e) => setAspect(e.currentTarget.videoWidth / e.currentTarget.videoHeight || 16 / 9)} />
+          )}
           <canvas ref={maskRef} className="live-mask" style={{ opacity: view && !paused ? opacity : 0 }} aria-hidden="true" />
           {view && !paused && (
             <div className="live-labels">
@@ -242,7 +291,12 @@ export default function LiveCamera() {
             </div>
           )}
         </div>
-        {!ready && (
+        {!ready && traverse && (
+          <div className="live-start">
+            <p>{photos === null ? t('live.tr.loading') : t('live.tr.none')}</p>
+          </div>
+        )}
+        {!ready && !traverse && (
           <div className="live-start">
             <p>{status === 'starting' ? t('live.starting') : t('live.intro')}</p>
             {err && <p className="live-err">{err}</p>}
@@ -261,7 +315,10 @@ export default function LiveCamera() {
       </div>
 
       <aside className="live-side">
-        <div className="live-row">
+        {traverse && frame && robotPos && (
+          <p className="note">{t('live.tr.note', { sol: frame.sol, dist: Math.round(haversine(robotPos, [frame.lon, frame.lat])) })}</p>
+        )}
+        <div className="live-row" style={traverse ? { display: 'none' } : undefined}>
           {source === 'camera' && devices.length > 0 ? (
             <select value={deviceId} onChange={(e) => (setDeviceId(e.target.value), startCamera(e.target.value))} aria-label={t('live.camera')}>
               {devices.map((d, i) => (
@@ -312,6 +369,9 @@ export default function LiveCamera() {
         </label>
         <label className="live-check">
           <input type="checkbox" checked={smooth} onChange={(e) => setSmooth(e.target.checked)} /> {t('live.smooth')}
+        </label>
+        <label className="live-check" title={t('live.std.help')}>
+          <input type="checkbox" checked={standardize} onChange={(e) => setStandardize(e.target.checked)} /> {t('live.std')}
         </label>
         <div className="live-row">
           <button type="button" className="btn" disabled={!ready} onClick={() => setPaused((p) => !p)} aria-pressed={paused}>

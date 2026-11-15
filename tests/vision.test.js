@@ -29,6 +29,9 @@ describe('visión del robot: preprocesamiento igual al del entrenamiento', () =>
   it('RGB con balance de blancos (S5Mars sobre la Hazcam)', () => {
     close(preprocess(rgba, FX.size, { kind: 'rgb', white_balance: true, ...IMAGENET }), FX.rgb_wb);
   });
+  it('RGB estandarizado: balance de blancos + estirado de luminancia (S5Mars)', () => {
+    close(preprocess(rgba, FX.size, { kind: 'rgb', white_balance: true, standardize: true, ...IMAGENET }), FX.rgb_std);
+  });
   it('RGB (S5Mars)', () => {
     close(preprocess(rgba, FX.size, { kind: 'rgb', contrast_stretch: false, ...IMAGENET }), FX.rgb);
   });
@@ -137,5 +140,31 @@ describe('cámara en vivo: suavizado, calidad y rotulado', async () => {
     expect(sizeFor({ size: 384 }, 'normal')).toBe(288);
     expect(sizeFor({ size: 512 }, 'fast')).toBe(256);
     expect(sizeFor({ size: 512 }, 'high')).toBe(512);
+  });
+});
+
+describe('recorrido por Marte (feed de fotos reales)', async () => {
+  const { feedPosition, FEED_STEP_M, nearestPhoto } = await import('../src/lib/traverseFeed.js');
+  const photos = [
+    { file: 'a.jpg', lon: 77.45, lat: 18.44, sol: 13 },
+    { file: 'b.jpg', lon: 77.4, lat: 18.48, sol: 300 },
+  ];
+  it('elige la foto más cercana y da la distancia en metros', () => {
+    const p = nearestPhoto(photos, [77.401, 18.479]);
+    expect(p.file).toBe('b.jpg');
+    expect(p.index).toBe(1);
+    expect(p.dist_m).toBeGreaterThan(50);
+    expect(p.dist_m).toBeLessThan(200);
+    expect(nearestPhoto([], [77.4, 18.4])).toBeNull();
+  });
+  it('avanza un cuadro cada FEED_STEP_M metros y da la fracción para el fundido', () => {
+    expect(feedPosition(5, 0, 100)).toEqual({ idx: 5, next: 6, t: 0 });
+    const p = feedPosition(5, FEED_STEP_M * 2.5, 100);
+    expect(p.idx).toBe(7);
+    expect(p.t).toBeCloseTo(0.5);
+  });
+  it('da la vuelta al final de la secuencia', () => {
+    expect(feedPosition(99, FEED_STEP_M, 100).idx).toBe(0);
+    expect(feedPosition(0, 0, 0)).toEqual({ idx: 0, next: 0, t: 0 });
   });
 });

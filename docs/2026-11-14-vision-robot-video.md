@@ -7,6 +7,21 @@ píxel: máscara de colores, rótulos por región (clase + %), leyenda, alerta d
 (`ROBOT_DETECT`). "Simulada (render 3D)" conserva la cámara anterior de la simulación (sin IA: los modelos no
 reconocen el render gris).
 
+## Tres vistas en Hábitat → Cámara
+1. **Cámara en vivo**: la cámara del robot (USB/webcam/celular) o un video.
+2. **Recorrido por Marte**: 93 fotos REALES de la Hazcam frontal de Perseverance (NASA/JPL-Caltech) en el orden de su
+   recorrido por Jezero, ligadas a lo que camina el robot (un cuadro cada 60 m, con acercamiento y fundido); la misma
+   IA en tiempo real encima. No es video continuo (son fotos sueltas).
+3. **Simulada (render 3D)**: la cámara anterior de la simulación, sin IA.
+
+## Estandarización de la imagen (interruptor, activado)
+Corrige el balance de blancos (gray-world) y estira la luminancia p1–p99 con el mismo factor en los 3 canales antes de
+la IA, para que cambios de cámara, luz o exposición afecten menos. Medido como **estabilidad** de la predicción ante
+brillo ×0.6/×1.5, gamma 0.6/1.8, tinte rojo/azul, contraste ×0.6, ruido y desenfoque (14 fotos, calidad Rápida; es
+consistencia, NO exactitud): S5Mars 0.63 (sin nada) → 0.83 (balance de blancos) → **0.86** (+ estirado); AI4Mars 0.92
+con o sin (ya estira el contraste de cada foto como en su entrenamiento). Replicado en `export_vision_onnx.py` con
+prueba de paridad JS↔numpy. Lo que NO arregla: un dominio muy distinto (otra óptica, otro terreno) pide reentrenar.
+
 ## Cómo logra tiempo real (todo en el navegador, el video no sale del equipo)
 - **Grupo de Web Workers** (hasta 4, uno por cada 4 hilos lógicos) que procesan cuadros alternos en paralelo; los
   cuadros se toman al momento de enviarlos y se descartan si todos están ocupados (siempre se procesa lo más reciente).

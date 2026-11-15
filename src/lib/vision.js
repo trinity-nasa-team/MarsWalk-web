@@ -60,11 +60,22 @@ export function preprocess(rgba, size, input) {
         for (let c = 0; c < 3; c++) gain[c] = avg / Math.max(mu[c], 1);
       }
     }
+    const px = new Float32Array(3 * n); // canales 0–255 ya con balance de blancos
     for (let i = 0; i < n; i++) {
-      for (let c = 0; c < 3; c++) {
-        const v = input.white_balance ? Math.floor(Math.min(255, rgba[4 * i + c] * gain[c])) : rgba[4 * i + c];
-        out[c * n + i] = (v / 255 - mean[c]) / std[c];
-      }
+      for (let c = 0; c < 3; c++) px[c * n + i] = input.white_balance ? Math.floor(Math.min(255, rgba[4 * i + c] * gain[c])) : rgba[4 * i + c];
+    }
+    if (input.standardize) {
+      // Estandariza la exposición: estira la luminancia (p1–p99) con el MISMO factor en los 3 canales (conserva el
+      // color). Hace que cambios de luz, cámara o exposición afecten menos a la predicción (S5Mars: estabilidad 0.63 → 0.86).
+      const L = new Float32Array(n);
+      for (let i = 0; i < n; i++) L[i] = (0.299 * px[i] + 0.587 * px[n + i] + 0.114 * px[2 * n + i]) / 255;
+      const sorted = Float32Array.from(L).sort();
+      const lo = percentile(sorted, 1);
+      const span = Math.max(percentile(sorted, 99) - lo, 1e-3);
+      for (let k = 0; k < 3 * n; k++) px[k] = Math.floor(Math.min(1, Math.max(0, (px[k] / 255 - lo) / span)) * 255);
+    }
+    for (let i = 0; i < n; i++) {
+      for (let c = 0; c < 3; c++) out[c * n + i] = (px[c * n + i] / 255 - mean[c]) / std[c];
     }
   }
   return out;
@@ -278,7 +289,7 @@ export function createVisionPool(modelId, n = defaultWorkers()) {
   return {
     workers: n,
     ready,
-    run(source, size) {
+    run(source, size, override) {
       if (closed) return null;
       const slot = workers.find((x) => x.ready && !x.busy);
       if (!slot) return null;
@@ -296,7 +307,7 @@ export function createVisionPool(modelId, n = defaultWorkers()) {
       return metas
         .get(modelId)
         .then((meta) =>
-          ask(slot, { url: urlP, rgba, size, input: meta.input, nClasses: meta.classes.length }, [rgba]),
+          ask(slot, { url: urlP, rgba, size, input: { ...meta.input, ...override }, nClasses: meta.classes.length }, [rgba]),
         )
         .then((r) => ({ probs: r.probs, size, nClasses: r.nClasses, ms: r.ms, latency: performance.now() - t0, seq: seqNo, meta: null }))
         .finally(() => {
