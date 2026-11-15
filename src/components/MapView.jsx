@@ -138,7 +138,10 @@ export default function MapView({
       if (apiRef) apiRef.current = map;
       map.__owner.clickRef = clickRef;
       ready.current = !!map.__loaded;
-      if (!map.__loaded) map.once('marswalk:ready', onLoaded);
+      // `on` (no `once`): MapLibre llama primero a los listeners normales y después a los de una sola vez. Con `once`,
+      // los efectos que encienden capas (también `on`) corrían antes de marcar el mapa como listo y no hacían nada:
+      // HiRISE, arena y recorrido quedaban apagados hasta que otro cambio volvía a correr el efecto.
+      if (!map.__loaded) map.on('marswalk:ready', onLoaded);
       ro.observe(box.current);
       return () => {
         ro.disconnect();
