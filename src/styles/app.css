@@ -489,7 +489,8 @@ ul.explain {
 
 /* ---- Mapa ----------------------------------------------------------------------------- */
 .map,
-.map.maplibregl-map {
+.map-gl,
+.map-gl.maplibregl-map {
   /* MapLibre fija position: relative en .maplibregl-map; aquí el mapa llena su pantalla. */
   position: absolute;
   inset: 0;
