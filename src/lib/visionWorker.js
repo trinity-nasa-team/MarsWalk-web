@@ -1,7 +1,7 @@
 // Worker de visión: preprocesa, corre el modelo ONNX (onnxruntime-web, WASM) y hace argmax fuera del hilo de la
 // interfaz, para que el video siga fluido mientras se segmenta cada cuadro.
 import * as ortNs from 'onnxruntime-web/wasm';
-import { argmax, preprocess } from './vision.js';
+import { argmaxConf, preprocess } from './vision.js';
 
 const ort = ortNs.default ?? ortNs;
 ort.env.wasm.numThreads = 1; // sin COOP/COEP no hay hilos de WASM
@@ -24,8 +24,8 @@ self.onmessage = async ({ data }) => {
     const t0 = performance.now();
     const x = new ort.Tensor('float32', preprocess(new Uint8ClampedArray(rgba), size, input), [1, 3, size, size]);
     const out = await sess.run({ [sess.inputNames[0]]: x });
-    const labels = argmax(out[sess.outputNames[0]].data, nClasses, size);
-    self.postMessage({ id, ok: true, labels, ms: Math.round(performance.now() - t0) }, [labels.buffer]);
+    const { labels, conf } = argmaxConf(out[sess.outputNames[0]].data, nClasses, size);
+    self.postMessage({ id, ok: true, labels, conf, ms: Math.round(performance.now() - t0) }, [labels.buffer, conf.buffer]);
   } catch (e) {
     self.postMessage({ id, ok: false, error: String(e?.message || e) });
   }

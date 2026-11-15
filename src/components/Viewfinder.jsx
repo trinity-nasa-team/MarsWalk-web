@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { api } from '../lib/api.js';
 import { easePan } from '../lib/ease.js';
 import { MARS_RADIUS_M, cardinal, haversine } from '../lib/geo.js';
-import { colorize, labelRegions, loadMeta, segment, VISION_MODELS, warmUp } from '../lib/vision.js';
+import { classShares, colorizeConf, hazardsFound, labelRegions, loadMeta, segment, VISION_MODELS, warmUp } from '../lib/vision.js';
 import { canDetect } from '../lib/sim.js';
 import { useRegion, useStore } from '../state/store.jsx';
 
@@ -20,6 +20,35 @@ export const FEED_STEP_M = 60; // metros que camina el robot por cuadro del feed
 const ZOOM = 0.16; // acercamiento a lo largo de un cuadro (sensación de avance)
 const AHEAD = 4; // cuadros que la IA lleva procesados por delante del video
 const segCache = new Map(); // `${modelo}:${url}` → { res, mask, regions }
+
+/** Construye (o reconstruye si cambió el umbral) la máscara, los rótulos y los porcentajes de una predicción. */
+function ensureBuilt(e, thr) {
+  if (!e || !e.res || e.thr === thr) return e;
+  const r = e.res;
+  const t255 = Math.round(thr * 255);
+  const ignore = new Set((r.meta.ignore_in_share || []).map((c) => r.meta.classes.indexOf(c)));
+  const ig = ignore.values().next().value ?? 0;
+  e.mask ??= Object.assign(document.createElement('canvas'), { width: r.size, height: r.size, complete: true, naturalWidth: r.size });
+  e.mask.getContext('2d').putImageData(new ImageData(colorizeConf(r.labels, r.conf, r.meta.colors, t255, ignore, r.size), r.size, r.size), 0, 0);
+  // Píxeles dudosos → «sin clasificar»: no cuentan para ninguna clase.
+  const masked = new Uint8Array(r.labels.length);
+  let terrain = 0;
+  let unsure = 0;
+  for (let i = 0; i < masked.length; i++) {
+    const ok = r.conf[i] >= t255;
+    masked[i] = ok ? r.labels[i] : ig;
+    if (!ignore.has(r.labels[i])) {
+      terrain++;
+      if (!ok) unsure++;
+    }
+  }
+  const unclassified = terrain ? unsure / terrain : 0;
+  const shares = classShares(masked, r.meta).map((s) => (s.share == null ? s : { ...s, share: s.share * (1 - unclassified) }));
+  e.view = { meta: r.meta, ms: r.ms, shares, hazards: hazardsFound(shares, r.meta), unclassified };
+  e.regions = labelRegions(masked, r.size, r.meta);
+  e.thr = thr;
+  return e;
+}
 const FADE = 0.25; // último 25 % del tramo: fundido al siguiente cuadro
 
 /** Índice (con fracción) del cuadro del feed: arranca en el cuadro más cercano al robot y avanza con lo que camina. */
@@ -247,8 +276,8 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
       // Predicción de la IA: una por foto (calculada por adelantado), dibujada con la MISMA transformación que la
       // foto → máscara y rótulos van pegados a la imagen, sin retraso.
       const model = segModelRef.current;
-      const ea = model ? segCache.get(`${model}:${photos[idx].url}`) : null;
-      const eb = model ? segCache.get(`${model}:${photos[next].url}`) : null;
+      const ea = model ? ensureBuilt(segCache.get(`${model}:${photos[idx].url}`), thrRef.current) : null;
+      const eb = model ? ensureBuilt(segCache.get(`${model}:${photos[next].url}`), thrRef.current) : null;
       const op = opacityRef.current;
       if (ea?.mask) put(ea.mask, 1 + ZOOM * tt, op * (1 - fade));
       if (fade && eb?.mask) put(eb.mask, 1, op * fade);
@@ -273,7 +302,7 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
           ctx.fillText(text, x + 6, y + 1);
         }
       }
-      const shown = ea?.res ?? null;
+      const shown = ea?.view ?? null;
       if (shown !== f.shown || (!!model && !ea) !== f.pending) {
         f.shown = shown;
         f.pending = !!model && !ea;
@@ -286,10 +315,13 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
   }, [photoMode, photos]);
   const photo = photoMode && frame ? { ...frame, dist_m: haversine(robot.pos, [frame.lon, frame.lat]) } : null;
   const photosLoading = camMode === 'photo' && photos === null;
-  const [segOpacity, setSegOpacity] = useState(0.5);
+  const [segOpacity, setSegOpacity] = useState(0.85);
   const segModelRef = useRef(null);
   const opacityRef = useRef(segOpacity);
   const nameRef = useRef(() => '');
+  const [segThr, setSegThr] = useState(0.7); // confianza mínima para pintar un píxel
+  const thrRef = useRef(segThr);
+  thrRef.current = segThr;
   segModelRef.current = photoMode ? segModel : null;
   opacityRef.current = segOpacity;
   const [segRes, setSegRes] = useState(null); // predicción del cuadro visible (para la leyenda)
@@ -338,13 +370,7 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
         try {
           const r = await segment(segModel, im);
           if (!alive) break;
-          const mask = document.createElement('canvas');
-          mask.width = r.size;
-          mask.height = r.size;
-          mask.getContext('2d').putImageData(new ImageData(colorize(r.labels, r.meta.colors), r.size, r.size), 0, 0);
-          mask.complete = true; // misma interfaz que una imagen para `put`
-          mask.naturalWidth = r.size;
-          segCache.set(key, { res: r, mask, regions: labelRegions(r.labels, r.size, r.meta) });
+          segCache.set(key, { res: r }); // máscara y rótulos se construyen al dibujar, según el umbral
           if (segCache.size > 90) segCache.delete(segCache.keys().next().value);
           setSegStatus('live');
         } catch (e) {
@@ -644,7 +670,18 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
           )}
           {!photoMode && <p className="vf-seg-note">{t('vis.renderOff')}</p>}
           {photoMode && segModel && (
-            <input className="vf-seg-opacity" type="range" min="0.1" max="1" step="0.05" value={segOpacity} aria-label={t('vis.opacity')} onChange={(e) => setSegOpacity(+e.target.value)} />
+            <>
+              <label className="vf-seg-slider caption">
+                <span>
+                  {t('vis.thr')} <b>{Math.round(segThr * 100)} %</b>
+                </span>
+                <input type="range" min="0.4" max="0.95" step="0.05" value={segThr} onChange={(e) => setSegThr(+e.target.value)} />
+              </label>
+              <label className="vf-seg-slider caption">
+                <span>{t('vis.opacity')}</span>
+                <input type="range" min="0.2" max="1" step="0.05" value={segOpacity} onChange={(e) => setSegOpacity(+e.target.value)} />
+              </label>
+            </>
           )}
           {segRes && (
             <ul className="vf-seg-legend">
@@ -655,6 +692,13 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
                   <b>{Math.round(s.share * 100)} %</b>
                 </li>
               ))}
+              {segRes.unclassified >= 0.01 && (
+                <li>
+                  <i style={{ border: '1px dashed var(--slate-400)' }} />
+                  <span>{t('vis.unsure')}</span>
+                  <b>{Math.round(segRes.unclassified * 100)} %</b>
+                </li>
+              )}
             </ul>
           )}
           {segRes && segRes.hazards.length > 0 && (

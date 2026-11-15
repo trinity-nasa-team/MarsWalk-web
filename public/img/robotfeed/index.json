@@ -132,19 +132,6 @@
    "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/00170/ids/edr/browse/fcam/FLF_0170_0682039023_409ECM_N0060892FHAZ02002_01_295J01.png"
   },
   {
-   "file": "sol_0173_0.jpg",
-   "lon": 77.447046,
-   "lat": 18.429612,
-   "sol": 173,
-   "waypoint_sol": 173,
-   "odometer_m": 1963,
-   "sclk": 682276688.491,
-   "camera": "Front Hazcam (izquierda)",
-   "rover": "Perseverance",
-   "credit": "NASA/JPL-Caltech",
-   "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/00173/ids/edr/browse/fcam/FLM_0173_0682276688_487ECM_N0061450FHAZ00211_00_2LLJ01.png"
-  },
-  {
    "file": "sol_0173_1.jpg",
    "lon": 77.447046,
    "lat": 18.429612,
@@ -533,19 +520,6 @@
    "rover": "Perseverance",
    "credit": "NASA/JPL-Caltech",
    "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/00816/ids/edr/browse/fcam/FLF_0816_0739389322_987ECM_N0391418FHAZ02418_01_295J03.png"
-  },
-  {
-   "file": "sol_0838_0.jpg",
-   "lon": 77.36581,
-   "lat": 18.481268,
-   "sol": 838,
-   "waypoint_sol": 838,
-   "odometer_m": 18931,
-   "sclk": 741319473.834,
-   "camera": "Front Hazcam (izquierda)",
-   "rover": "Perseverance",
-   "credit": "NASA/JPL-Caltech",
-   "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/00838/ids/edr/browse/fcam/FLM_0838_0741319472_145ECM_N0400992AUT_04096_00_2LLJ01.png"
   },
   {
    "file": "sol_0866_0.jpg",
@@ -990,19 +964,6 @@
    "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01226/ids/edr/browse/fcam/FLF_1226_0775785484_115ECM_N0562784FHAZ02418_01_295J01.png"
   },
   {
-   "file": "sol_1244_0.jpg",
-   "lon": 77.300928,
-   "lat": 18.49114,
-   "sol": 1244,
-   "waypoint_sol": 1244,
-   "odometer_m": 28091,
-   "sclk": 777386097.318,
-   "camera": "Front Hazcam (izquierda)",
-   "rover": "Perseverance",
-   "credit": "NASA/JPL-Caltech",
-   "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01244/ids/edr/browse/fcam/FLM_1244_0777386095_987ECM_N0564106FHAZ00230_00_2LLJ01.png"
-  },
-  {
    "file": "sol_1244_1.jpg",
    "lon": 77.300928,
    "lat": 18.49114,
@@ -1014,45 +975,6 @@
    "rover": "Perseverance",
    "credit": "NASA/JPL-Caltech",
    "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01244/ids/edr/browse/fcam/FLF_1244_0777386172_816ECM_N0564106FHAZ02418_01_295J01.png"
-  },
-  {
-   "file": "sol_1247_0.jpg",
-   "lon": 77.299193,
-   "lat": 18.489335,
-   "sol": 1247,
-   "waypoint_sol": 1247,
-   "odometer_m": 28305,
-   "sclk": 777647821.443,
-   "camera": "Front Hazcam (izquierda)",
-   "rover": "Perseverance",
-   "credit": "NASA/JPL-Caltech",
-   "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01247/ids/edr/browse/fcam/FLM_1247_0777647820_880ECM_N0565250FHAZ00230_00_2LLJ01.png"
-  },
-  {
-   "file": "sol_1247_1.jpg",
-   "lon": 77.299193,
-   "lat": 18.489335,
-   "sol": 1247,
-   "waypoint_sol": 1247,
-   "odometer_m": 28305,
-   "sclk": 777647887.667,
-   "camera": "Front Hazcam (izquierda)",
-   "rover": "Perseverance",
-   "credit": "NASA/JPL-Caltech",
-   "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01247/ids/edr/browse/fcam/FLM_1247_0777647884_800ECM_N0565250FHAZ00230_00_2LLJ01.png"
-  },
-  {
-   "file": "sol_1264_0.jpg",
-   "lon": 77.298264,
-   "lat": 18.487234,
-   "sol": 1264,
-   "waypoint_sol": 1264,
-   "odometer_m": 28492,
-   "sclk": 779151581.631,
-   "camera": "Front Hazcam (izquierda)",
-   "rover": "Perseverance",
-   "credit": "NASA/JPL-Caltech",
-   "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01264/ids/edr/browse/fcam/FLM_1264_0779151580_300ECM_N0590330FHAZ00230_00_2LLJ01.png"
   },
   {
    "file": "sol_1264_1.jpg",
@@ -1094,19 +1016,6 @@
    "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01268/ids/edr/browse/fcam/FLF_1268_0779515699_425ECM_N0592902FHAZ02418_01_295J01.png"
   },
   {
-   "file": "sol_1271_0.jpg",
-   "lon": 77.30052,
-   "lat": 18.478598,
-   "sol": 1271,
-   "waypoint_sol": 1271,
-   "odometer_m": 29102,
-   "sclk": 779774030.397,
-   "camera": "Front Hazcam (izquierda)",
-   "rover": "Perseverance",
-   "credit": "NASA/JPL-Caltech",
-   "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01271/ids/edr/browse/fcam/FLM_1271_0779774029_066ECM_N0593872FHAZ00230_00_2LLJ01.png"
-  },
-  {
    "file": "sol_1271_1.jpg",
    "lon": 77.30052,
    "lat": 18.478598,
@@ -1118,32 +1027,6 @@
    "rover": "Perseverance",
    "credit": "NASA/JPL-Caltech",
    "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01271/ids/edr/browse/fcam/FLF_1271_0779774108_191ECM_N0593872FHAZ02418_01_295J02.png"
-  },
-  {
-   "file": "sol_1274_0.jpg",
-   "lon": 77.299194,
-   "lat": 18.476535,
-   "sol": 1274,
-   "waypoint_sol": 1274,
-   "odometer_m": 29257,
-   "sclk": 780047446.097,
-   "camera": "Front Hazcam (izquierda)",
-   "rover": "Perseverance",
-   "credit": "NASA/JPL-Caltech",
-   "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01274/ids/edr/browse/fcam/FLM_1274_0780047445_534ECM_N0594812FHAZ00230_00_2LLJ01.png"
-  },
-  {
-   "file": "sol_1274_1.jpg",
-   "lon": 77.299194,
-   "lat": 18.476535,
-   "sol": 1274,
-   "waypoint_sol": 1274,
-   "odometer_m": 29257,
-   "sclk": 780047511.388,
-   "camera": "Front Hazcam (izquierda)",
-   "rover": "Perseverance",
-   "credit": "NASA/JPL-Caltech",
-   "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01274/ids/edr/browse/fcam/FLM_1274_0780047508_521ECM_N0594812FHAZ00230_00_2LLJ01.png"
   },
   {
    "file": "sol_1278_0.jpg",
@@ -1211,19 +1094,6 @@
    "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01292/ids/edr/browse/fcam/FLF_1292_0781638904_521ECM_N0602500FHAZ02418_01_295J01.png"
   },
   {
-   "file": "sol_1294_0.jpg",
-   "lon": 77.294889,
-   "lat": 18.470675,
-   "sol": 1294,
-   "waypoint_sol": 1294,
-   "odometer_m": 30007,
-   "sclk": 781815695.771,
-   "camera": "Front Hazcam (izquierda)",
-   "rover": "Perseverance",
-   "credit": "NASA/JPL-Caltech",
-   "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01294/ids/edr/browse/fcam/FLM_1294_0781815694_441ECM_N0603632FHAZ00230_00_2LLJ01.png"
-  },
-  {
    "file": "sol_1294_1.jpg",
    "lon": 77.294889,
    "lat": 18.470675,
@@ -1235,19 +1105,6 @@
    "rover": "Perseverance",
    "credit": "NASA/JPL-Caltech",
    "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01294/ids/edr/browse/fcam/FLF_1294_0781815769_112ECM_N0603632FHAZ02418_01_295J01.png"
-  },
-  {
-   "file": "sol_1298_0.jpg",
-   "lon": 77.293201,
-   "lat": 18.469217,
-   "sol": 1298,
-   "waypoint_sol": 1298,
-   "odometer_m": 30165,
-   "sclk": 782173800.369,
-   "camera": "Front Hazcam (izquierda)",
-   "rover": "Perseverance",
-   "credit": "NASA/JPL-Caltech",
-   "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01298/ids/edr/browse/fcam/FLM_1298_0782173798_270ECM_N0604560FHAZ00230_00_2LLJ01.png"
   },
   {
    "file": "sol_1298_1.jpg",
@@ -1276,19 +1133,6 @@
    "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01305/ids/edr/browse/fcam/FLF_1305_0782798180_441ECM_N0611394FHAZ02418_01_295J01.png"
   },
   {
-   "file": "sol_1324_0.jpg",
-   "lon": 77.290804,
-   "lat": 18.465586,
-   "sol": 1324,
-   "waypoint_sol": 1324,
-   "odometer_m": 0,
-   "sclk": 784481220.512,
-   "camera": "Front Hazcam (izquierda)",
-   "rover": "Perseverance",
-   "credit": "NASA/JPL-Caltech",
-   "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01324/ids/edr/browse/fcam/FLM_1324_0784481217_645ECM_N0614240FHAZ00230_00_2LLJ01.png"
-  },
-  {
    "file": "sol_1324_1.jpg",
    "lon": 77.290804,
    "lat": 18.465586,
@@ -1300,19 +1144,6 @@
    "rover": "Perseverance",
    "credit": "NASA/JPL-Caltech",
    "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01324/ids/edr/browse/fcam/FLF_1324_0784487673_755ECM_N0614240FHAZ02418_01_295J01.png"
-  },
-  {
-   "file": "sol_1326_0.jpg",
-   "lon": 77.287624,
-   "lat": 18.46455,
-   "sol": 1326,
-   "waypoint_sol": 1326,
-   "odometer_m": 30980,
-   "sclk": 784661451.714,
-   "camera": "Front Hazcam (izquierda)",
-   "rover": "Perseverance",
-   "credit": "NASA/JPL-Caltech",
-   "source": "https://mars.nasa.gov/mars2020-raw-images/pub/ods/surface/sol/01326/ids/edr/browse/fcam/FLM_1326_0784661448_847ECM_N0614860FHAZ00230_00_2LLJ01.png"
   },
   {
    "file": "sol_1326_1.jpg",

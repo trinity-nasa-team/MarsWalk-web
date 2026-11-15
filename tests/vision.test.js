@@ -26,6 +26,9 @@ describe('visión del robot: preprocesamiento igual al del entrenamiento', () =>
   it('gris sin estirado', () => {
     close(preprocess(rgba, FX.size, { kind: 'gray', contrast_stretch: false, ...IMAGENET }), FX.gray_plain);
   });
+  it('RGB con balance de blancos (S5Mars sobre la Hazcam)', () => {
+    close(preprocess(rgba, FX.size, { kind: 'rgb', white_balance: true, ...IMAGENET }), FX.rgb_wb);
+  });
   it('RGB (S5Mars)', () => {
     close(preprocess(rgba, FX.size, { kind: 'rgb', contrast_stretch: false, ...IMAGENET }), FX.rgb);
   });
@@ -117,5 +120,20 @@ describe('rótulos por región (estilo detector)', async () => {
     expect(arena.share).toBeCloseTo(0.25);
     expect(arena.x).toBeCloseTo(0.25);
     expect(arena.y).toBeCloseTo(0.25);
+  });
+});
+
+describe('umbral de confianza', async () => {
+  const { argmaxConf, colorizeConf } = await import('../src/lib/vision.js');
+  it('confianza = softmax de la clase ganadora y máscara transparente bajo el umbral', () => {
+    // 2 clases, 2×2 px: píxel 1 dudoso (0.1 vs 0); los demás muy seguros (10 vs 0)
+    const { labels, conf } = argmaxConf(Float32Array.from([10, 0.1, 10, 10, 0, 0, 0, 0]), 2, 2);
+    expect([...labels]).toEqual([0, 0, 0, 0]);
+    expect(conf[0]).toBe(255);
+    expect(conf[1]).toBeGreaterThan(125);
+    expect(conf[1]).toBeLessThan(140);
+    const px = colorizeConf(labels, conf, [[9, 9, 9], [1, 1, 1]], 200, new Set(), 2);
+    expect(px[3]).toBeGreaterThan(0);
+    expect(px[7]).toBe(0);
   });
 });

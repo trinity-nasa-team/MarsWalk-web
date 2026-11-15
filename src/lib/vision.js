@@ -40,8 +40,31 @@ export function preprocess(rgba, size, input) {
       for (let c = 0; c < 3; c++) out[c * n + i] = (v - mean[c]) / std[c];
     }
   } else {
+    // Balance de blancos «gray-world» (sobre píxeles no oscuros): quita el tinte de la cámara. S5Mars se entrenó
+    // con fotos a color natural y con el tinte amarillo de la Hazcam predice ruido.
+    const gain = [1, 1, 1];
+    if (input.white_balance) {
+      const sum = [0, 0, 0];
+      let cnt = 0;
+      for (let i = 0; i < n; i++) {
+        if ((rgba[4 * i] + rgba[4 * i + 1] + rgba[4 * i + 2]) / 3 > 40) {
+          sum[0] += rgba[4 * i];
+          sum[1] += rgba[4 * i + 1];
+          sum[2] += rgba[4 * i + 2];
+          cnt++;
+        }
+      }
+      if (cnt) {
+        const mu = sum.map((v) => v / cnt);
+        const avg = (mu[0] + mu[1] + mu[2]) / 3;
+        for (let c = 0; c < 3; c++) gain[c] = avg / Math.max(mu[c], 1);
+      }
+    }
     for (let i = 0; i < n; i++) {
-      for (let c = 0; c < 3; c++) out[c * n + i] = (rgba[4 * i + c] / 255 - mean[c]) / std[c];
+      for (let c = 0; c < 3; c++) {
+        const v = input.white_balance ? Math.floor(Math.min(255, rgba[4 * i + c] * gain[c])) : rgba[4 * i + c];
+        out[c * n + i] = (v / 255 - mean[c]) / std[c];
+      }
     }
   }
   return out;
@@ -64,6 +87,51 @@ export function argmax(logits, nClasses, size) {
     labels[i] = best;
   }
   return labels;
+}
+
+/** Logits → etiqueta y confianza (probabilidad softmax de la clase ganadora, 0–255) por píxel. */
+export function argmaxConf(logits, nClasses, size) {
+  const n = size * size;
+  const labels = new Uint8Array(n);
+  const conf = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    let best = 0;
+    let bv = logits[i];
+    for (let c = 1; c < nClasses; c++) {
+      const v = logits[c * n + i];
+      if (v > bv) {
+        bv = v;
+        best = c;
+      }
+    }
+    let z = 0;
+    for (let c = 0; c < nClasses; c++) z += Math.exp(logits[c * n + i] - bv);
+    labels[i] = best;
+    conf[i] = Math.round(255 / z);
+  }
+  return { labels, conf };
+}
+
+/**
+ * Máscara RGBA con umbral de confianza: transparente donde la IA no está segura (conf < thr255) o la clase no es
+ * terreno (`ignore`); relleno suave y contorno marcado entre regiones.
+ */
+export function colorizeConf(labels, conf, colors, thr255, ignore, size) {
+  const out = new Uint8ClampedArray(labels.length * 4);
+  const shown = (i) => conf[i] >= thr255 && !ignore.has(labels[i]);
+  for (let i = 0; i < labels.length; i++) {
+    if (!shown(i)) continue;
+    const x = i % size;
+    const r = i + 1;
+    const d = i + size;
+    const edge = (x < size - 1 && (!shown(r) || labels[r] !== labels[i])) || (d < labels.length && (!shown(d) || labels[d] !== labels[i]));
+    const c = colors[labels[i]];
+    out[4 * i] = c[0];
+    out[4 * i + 1] = c[1];
+    out[4 * i + 2] = c[2];
+    out[4 * i + 3] = edge ? 255 : 120;
+  }
+  return out;
 }
 
 /** Fracción de píxeles por clase, sin contar las clases que no son terreno (fondo, cielo, rover). */
@@ -157,7 +225,7 @@ export async function segment(id, source) {
   const rgba = ctx.getImageData(0, 0, S, S).data.buffer;
   const r = await ask({ url: `${BASE}/${meta.file}`, rgba, size: S, input: meta.input, nClasses: meta.classes.length }, [rgba]);
   const shares = classShares(r.labels, meta);
-  return { meta, size: S, labels: r.labels, shares, hazards: hazardsFound(shares, meta), ms: r.ms };
+  return { meta, size: S, labels: r.labels, conf: r.conf, shares, hazards: hazardsFound(shares, meta), ms: r.ms };
 }
 
 /**

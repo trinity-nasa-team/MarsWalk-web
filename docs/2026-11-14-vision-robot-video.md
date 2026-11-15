@@ -21,6 +21,12 @@
 > con la misma transformación que la foto → sin retraso. Si la predicción del siguiente cuadro no está lista, el
 > video espera (la velocidad del feed se adapta al modelo). Medido en Chrome: en sincronía 40/40 muestras con
 > AI4Mars (×60 y ×120) y con S5Mars (×60). Se eliminó el hook `useSegmentation`.
+> **Calidad de la predicción (misma fecha):** al revisar a ojo, la máscara cruda era ruido (S5Mars sobre la Hazcam
+> amarillenta; píxeles dudosos pintados igual). Cambios: (1) **umbral de confianza** (softmax por píxel; por defecto
+> 70 %, ajustable 40–95 %): lo dudoso no se pinta y se reporta como "Sin clasificar"; (2) **balance de blancos**
+> gray-world en la entrada de S5Mars (replicado en `export_vision_onnx.py` y con fixture de paridad); (3) máscara con
+> relleno suave + contorno; (4) se quitaron 13 cuadros en gris (S5Mars es de color); quedan 93. Principio: mejor
+> no pintar que pintar basura. Sigue siendo dominio distinto (Curiosity ≠ Perseverance/Jezero).
 > Lo de abajo describe la primera versión (pestaña aparte) y queda como historial.
 
 ## Qué se hizo
