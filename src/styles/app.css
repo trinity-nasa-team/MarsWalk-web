@@ -2146,3 +2146,19 @@ html[data-theme='light'] .robot-cam-earth { color: #1d5f99; }
   .robot-cam-note { display: none; }
 }
 @media (max-height: 640px) { .robot-cam.pip .robot-cam-view, .robot-cam.pip .robot-cam-media { max-height: 180px; } .robot-cam-note { display: none; } }
+
+/* Control del rover real (bajo la cámara) */
+.robot-ctl { display: grid; gap: 5px; padding-top: 6px; border-top: 1px solid var(--slate-800); }
+.robot-ctl-pad { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+.robot-ctl-pad .btn { min-height: 38px; padding: 0; font-size: 15px; background: rgb(0 0 0 / 0.5); }
+.robot-ctl-pad .btn.robot-ctl-stop { color: #ff8a8a; }
+.robot-ctl-pad .btn.busy { background: var(--white); color: var(--black); }
+.robot-ctl-status { font-size: 10.5px; min-height: 14px; }
+.robot-ctl-status.error { color: #ff8a8a; }
+.robot-ctl-status.done { color: #7ee2a8; }
+html[data-theme='light'] .robot-ctl-pad .btn { background: var(--white); color: var(--black); }
+html[data-theme='light'] .robot-ctl-status.done { color: #1a7f45; }
+html[data-theme='light'] .robot-ctl-status.error { color: #b42318; }
+/* Con la cámara del robot abajo, el visor no crece encima de ella: el chat hace scroll por dentro. */
+.screen:has(.hud-bottom .robot-cam.pip) .hud-intro { max-height: 272px; }
+.screen:has(.hud-bottom .robot-cam.pip.expanded) .hud-intro { max-height: calc(100% - 28px); }

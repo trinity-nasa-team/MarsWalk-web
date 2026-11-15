@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Gauge, RadiationReadout } from '../components/Gauges.jsx';
 import HabitatChat from '../components/HabitatChat.jsx';
 import RobotCamera from '../components/RobotCamera.jsx';
+import { parseRobotCommand, robotAvailable, robotCommand } from '../lib/robot.js';
 import { useRadiation } from '../lib/radiation.js';
 import MapView from '../components/MapView.jsx';
 import { liveVitals } from '../lib/vitals.js';
@@ -78,6 +79,14 @@ export default function HudView() {
   };
   // Comando de voz/texto local (no pasa por la IA): autorizar la ruta pendiente.
   const onCommand = (text) => {
+    // Orden al robot REAL ("gira a la izquierda", "avanza", "alto"): pulso corto por el túnel de la cámara.
+    const cmd = robotAvailable() ? parseRobotCommand(text) : null;
+    if (cmd) {
+      robotCommand(cmd);
+      const msg = t(`robot.say.${cmd}`);
+      say(msg);
+      return msg;
+    }
     const s = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const yes = /(autoriz|aprueb|aprob|confirm|approv|authori[sz])/.test(s);
     const no = /\b(no|cancela|rechaz|deny|reject)\b/.test(s);
