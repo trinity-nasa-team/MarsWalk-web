@@ -5,8 +5,17 @@
 //  - S5Mars (Zhang et al., IEEE TGRS 2024): foto a color, 512 px.
 // Las funciones puras (preprocess, argmax, shares…) no dependen del navegador y tienen pruebas.
 
-export const VISION_MODELS = ['ai4mars', 's5mars'];
 const BASE = '/models/vision';
+
+/** Modelos instalados: ids listados en /models/vision/index.json ({"models": ["id", …]}). Sin archivo = sin IA. */
+let modelList = null;
+export function loadModelList() {
+  modelList ??= fetch(`${BASE}/index.json`)
+    .then((r) => (r.ok ? r.json() : { models: [] }))
+    .then((d) => (Array.isArray(d.models) ? d.models : []))
+    .catch(() => []);
+  return modelList;
+}
 
 /** Percentil con interpolación lineal, igual que numpy.percentile (método por defecto). */
 export function percentile(sorted, p) {

@@ -1,13 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { argmax, classShares, colorize, hazardsFound, percentile, preprocess, VISION_MODELS } from '../src/lib/vision.js';
+import { argmax, classShares, colorize, hazardsFound, percentile, preprocess } from '../src/lib/vision.js';
 
 // Valores de referencia generados con `preprocess` de MarsWalk-v2/scripts/export_vision_onnx.py (numpy).
 const FX = JSON.parse(readFileSync(resolve('tests/fixtures_vision.json'), 'utf8'));
-const META = Object.fromEntries(
-  VISION_MODELS.map((id) => [id, JSON.parse(readFileSync(resolve(`public/models/vision/${id}.json`), 'utf8'))]),
-);
+// Metadatos de ejemplo (formato de <id>.json); ya no hay modelos instalados en el repo.
+const META = {
+  ai4mars: { classes: ['suelo', 'roca_firme', 'arena', 'roca_grande', 'fondo'], classes_en: ['soil', 'bedrock', 'sand', 'big rock', 'background'], colors: [[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5]], ignore_in_share: ['fondo'], hazards: { arena: 0.15, roca_grande: 0.01 }, size: 384 },
+  s5mars: { classes: ['cielo', 'cresta', 'suelo', 'arena', 'roca_madre', 'roca_suelta', 'rover', 'huella', 'hoyo'], classes_en: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], colors: Array.from({ length: 9 }, (_, i) => [i, i, i]), ignore_in_share: ['cielo', 'rover'], hazards: { arena: 0.15, hoyo: 0.01, roca_suelta: 0.08 }, size: 512 },
+};
 const IMAGENET = { mean: [0.485, 0.456, 0.406], std: [0.229, 0.224, 0.225] };
 
 describe('visión del robot: preprocesamiento igual al del entrenamiento', () => {
@@ -62,17 +64,6 @@ describe('visión del robot: posproceso', () => {
   it('colorea con la paleta del modelo', () => {
     const px = colorize(Uint8Array.from([1]), [[0, 0, 0], [10, 20, 30]]);
     expect([...px]).toEqual([10, 20, 30, 255]);
-  });
-  it('metadatos completos y coherentes para ambos modelos', () => {
-    for (const id of VISION_MODELS) {
-      const m = META[id];
-      expect(m.classes.length).toBe(m.colors.length);
-      expect(m.classes.length).toBe(m.classes_en.length);
-      for (const h of Object.keys(m.hazards)) expect(m.classes).toContain(h);
-      expect(m.dataset).toBeTruthy();
-      expect(m.limitations.length).toBeGreaterThan(0);
-      expect([384, 512]).toContain(m.size);
-    }
   });
 });
 

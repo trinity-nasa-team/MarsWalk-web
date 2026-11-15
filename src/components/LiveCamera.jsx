@@ -15,10 +15,10 @@ import {
   labelRegions,
   labelsFromProbs,
   loadMeta,
+  loadModelList,
   QUALITIES,
   sizeFor,
   Smoother,
-  VISION_MODELS,
 } from '../lib/vision.js';
 import { useStore } from '../state/store.jsx';
 import ModelCard from './ModelCard.jsx';
@@ -42,7 +42,8 @@ export default function LiveCamera({ mode = 'camera' }) {
   const [deviceId, setDeviceId] = useState('');
   const [status, setStatus] = useState('idle'); // idle | starting | live | error
   const [err, setErr] = useState('');
-  const [model, setModel] = useState('ai4mars');
+  const [ids, setIds] = useState(null); // modelos instalados (null = leyendo)
+  const [model, setModel] = useState(null);
   const [quality, setQuality] = useState('fast');
   const [thr, setThr] = useState(0.6);
   const [opacity, setOpacity] = useState(0.65);
@@ -98,8 +99,13 @@ export default function LiveCamera({ mode = 'camera' }) {
 
   useEffect(() => {
     let alive = true;
-    Promise.all(VISION_MODELS.map((m) => loadMeta(m).catch(() => null))).then((ms) => {
-      if (alive) setMetas(Object.fromEntries(VISION_MODELS.map((m, i) => [m, ms[i]])));
+    loadModelList().then(async (list) => {
+      const ms = await Promise.all(list.map((m) => loadMeta(m).catch(() => null)));
+      const ok = list.filter((_, i) => ms[i]);
+      if (!alive) return;
+      setMetas(Object.fromEntries(list.map((m, i) => [m, ms[i]])));
+      setIds(ok);
+      setModel((cur) => cur ?? ok[0] ?? null);
     });
     return () => {
       alive = false;
@@ -196,7 +202,7 @@ export default function LiveCamera({ mode = 'camera' }) {
 
   // ── Bucle de segmentación ────────────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (status !== 'live') return undefined;
+    if (status !== 'live' || !model) return undefined; // sin modelo instalado: solo video
     let alive = true;
     const pool = createVisionPool(model);
     const smoother = new Smoother(0.6);
@@ -277,6 +283,7 @@ export default function LiveCamera({ mode = 'camera' }) {
   const className = (m, id) => (lang === 'en' ? m.classes_en[m.classes.indexOf(id)] : t(`vis.class.${id}`));
   const fullscreen = () => (document.fullscreenElement ? document.exitFullscreen() : stageRef.current?.requestFullscreen?.());
   const ready = status === 'live';
+  const hasModels = !!ids?.length;
   const m = view?.meta;
   const rgb = (cls) => `rgb(${m.colors[cls].join(',')})`;
   const darkText = (cls) => m.colors[cls][0] * 0.299 + m.colors[cls][1] * 0.587 + m.colors[cls][2] * 0.114 > 140;
@@ -303,7 +310,7 @@ export default function LiveCamera({ mode = 'camera' }) {
           <div className="live-hud">
             <span className="live-dot" />
             <b>{t('live.badge')}</b>
-            {!view && <span>{t('live.loadingModel')}</span>}
+            {!view && hasModels && <span>{t('live.loadingModel')}</span>}
             {view && <span>{t('live.fps', { fps: view.fps.toFixed(1), ms: view.ms, n: view.workers, size: view.size })}</span>}
           </div>
           {view?.hazards.length > 0 && (
@@ -357,10 +364,13 @@ export default function LiveCamera({ mode = 'camera' }) {
             </button>
           )}
         </div>
+        {ids && !hasModels && <p className="note">{t('live.noModel')}</p>}
+        {hasModels && (
+        <>
         <label className="live-field">
           <span className="caption">{t('vis.model')}</span>
-          <select value={model} onChange={(e) => setModel(e.target.value)}>
-            {VISION_MODELS.map((id) => (
+          <select value={model ?? ''} onChange={(e) => setModel(e.target.value)}>
+            {ids.map((id) => (
               <option key={id} value={id}>
                 {metas[id]?.name || id}
                 {metas[id] ? ` · mIoU ${metas[id].metrics.test_miou.toFixed(2)} · ${t('vis.class.arena').toLowerCase()} ${metas[id].metrics.iou_sand.toFixed(2)}` : ''}
@@ -394,6 +404,8 @@ export default function LiveCamera({ mode = 'camera' }) {
         <label className="live-check" title={t('live.std.help')}>
           <input type="checkbox" checked={standardize} onChange={(e) => setStandardize(e.target.checked)} /> {t('live.std')}
         </label>
+        </>
+        )}
         <div className="live-row">
           <button type="button" className="btn" disabled={!ready} onClick={() => setPaused((p) => !p)} aria-pressed={paused}>
             {paused ? t('live.resume') : t('live.pause')}
@@ -430,13 +442,13 @@ export default function LiveCamera({ mode = 'camera' }) {
             {t('vis.report')}
           </button>
         )}
-        {metas[model] && (
+        {model && metas[model] && (
           <details className="live-metrics">
             <summary>{t('live.metrics')}</summary>
-            <ModelCard meta={metas[model]} other={metas[model === 'ai4mars' ? 's5mars' : 'ai4mars']} liveMs={view?.ms} t={t} />
+            <ModelCard meta={metas[model]} other={metas[ids.find((x) => x !== model)]} liveMs={view?.ms} t={t} />
           </details>
         )}
-        <p className="note">{t('live.domain')}</p>
+        {hasModels && <p className="note">{t('live.domain')}</p>}
       </aside>
     </div>
   );
