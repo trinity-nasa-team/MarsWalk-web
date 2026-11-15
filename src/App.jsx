@@ -84,7 +84,7 @@ export default function App() {
       {showLanding && (
       <div className="landing" aria-hidden="true">
         <div className="inner">
-          <div className="display">Marswalk</div>
+          <div className="display">ANDAR</div>
           <div className="caption">
             <span className="blink" />
             {t('site')}
@@ -95,7 +95,7 @@ export default function App() {
       <div className="shell">
         <header className="topbar">
           <button type="button" className="brand" onClick={() => go('home')} aria-label={t('nav.home')}>
-            <span className="display">Marswalk</span>
+            <span className="display">ANDAR</span>
             <span className="caption">
               {state.plan.regionId === 'jezero' || !state.plan.habitat
                 ? t('site')

@@ -1,6 +1,8 @@
-# MarsWalk — Web
+# ANDAR — Web
 
-Interfaz de MarsWalk (NASA Space Apps 2026, reto *Interplanetary Survival Guide: Martian Map*): planificación de EVA
+**ANDAR** · *Astronaut Navigation & Data-Assisted Routing* · Safe walks on Mars, with a rover one step ahead. Team Trinity.
+
+Interfaz de ANDAR (NASA Space Apps 2026, reto *Interplanetary Survival Guide: Martian Map*): planificación de EVA
 en el cráter Jezero, HUD del astronauta, hábitat, enlace con la Tierra y comparación con el recorrido de Perseverance.
 
 - **Stack:** React 19 · Vite 8 · MapLibre GL 6 · three.js · Vitest
