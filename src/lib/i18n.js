@@ -652,6 +652,24 @@ Object.assign(en, {
   'cam.src.sim': 'Simulated (3D)',
 });
 
+// Control del rover REAL (pulsos cortos por el túnel de la cámara).
+Object.assign(es, {
+  'robot.say.forward': 'Avanzando',
+  'robot.say.backward': 'Retrocediendo',
+  'robot.say.left': 'Girando a la izquierda',
+  'robot.say.right': 'Girando a la derecha',
+  'robot.say.stop': 'Deteniendo el robot',
+  'robot.fail': 'El robot no respondió',
+});
+Object.assign(en, {
+  'robot.say.forward': 'Moving forward',
+  'robot.say.backward': 'Backing up',
+  'robot.say.left': 'Turning left',
+  'robot.say.right': 'Turning right',
+  'robot.say.stop': 'Stopping the robot',
+  'robot.fail': 'The robot did not respond',
+});
+
 export const DICTS = { es, en };
 
 export function detectLang(search = '', nav = {}) {

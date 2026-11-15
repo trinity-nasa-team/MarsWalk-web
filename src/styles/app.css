@@ -2146,3 +2146,9 @@ html[data-theme='light'] .robot-cam-earth { color: #1d5f99; }
   .robot-cam-note { display: none; }
 }
 @media (max-height: 640px) { .robot-cam.pip .robot-cam-view, .robot-cam.pip .robot-cam-media { max-height: 180px; } .robot-cam-note { display: none; } }
+
+/* Con la cámara del robot abajo, el visor no crece encima de ella: el chat hace scroll por dentro. */
+.screen:has(.hud-bottom .robot-cam.pip) .hud-intro { max-height: 272px; }
+.screen:has(.hud-bottom .robot-cam.pip.expanded) .hud-intro { max-height: calc(100% - 28px); }
+
+

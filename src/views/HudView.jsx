@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Gauge, RadiationReadout } from '../components/Gauges.jsx';
 import HabitatChat from '../components/HabitatChat.jsx';
 import RobotCamera from '../components/RobotCamera.jsx';
+import { parseRobotCommand, robotAvailable, robotCommand } from '../lib/robot.js';
 import { useRadiation } from '../lib/radiation.js';
 import MapView from '../components/MapView.jsx';
 import { liveVitals } from '../lib/vitals.js';
@@ -81,10 +82,18 @@ export default function HudView() {
     const s = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const yes = /(autoriz|aprueb|aprob|confirm|approv|authori[sz])/.test(s);
     const no = /\b(no|cancela|rechaz|deny|reject)\b/.test(s);
-    if (!yes || no) return null;
-    const msg = approve() ? t('chat.approved') : t('chat.nothingPending');
-    say(msg);
-    return msg;
+    // 1) Autorizar la ruta pendiente gana siempre (es la orden crítica del HUD).
+    if (yes && !no) {
+      const msg = approve() ? t('chat.approved') : t('chat.nothingPending');
+      say(msg);
+      return msg;
+    }
+    // 2) Orden al robot REAL ("turn left", "gira a la izquierda", "alto"): pulso corto por el túnel de la cámara.
+    const cmd = robotAvailable() ? parseRobotCommand(text) : null;
+    if (!cmd) return null;
+    const msg = t(`robot.say.${cmd}`);
+    robotCommand(cmd).then((r) => say(r.ok ? msg : t('robot.fail')));
+    return `${msg}…`;
   };
   const telemetry = {
     state: mode,

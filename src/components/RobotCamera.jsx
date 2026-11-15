@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createJitterBuffer, createMjpegParser, loadRotation, nextRotation, resolveCamera, saveRotation } from '../lib/camera.js';
 
+
 const FPS = 15; // ritmo nominal de la cámara (320×240 a 15 FPS en la Raspberry)
 const DELAY_MS = 600; // retraso a cambio de fluidez: absorbe las ráfagas del túnel
 const NO_FRAME_MS = 6000; // sin cuadros (ni al conectar) en este tiempo → "sin señal" y reconexión
