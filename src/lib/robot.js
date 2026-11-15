@@ -96,3 +96,51 @@ export async function robotCommand(cmd, { base = resolveCameraBase(), fetchImpl 
   if (id === seq) emit({ cmd, state: out.ok ? 'done' : 'error', error: out.error ?? null, heard, at: Date.now() }); // una orden más nueva manda
   return out;
 }
+
+// ── Ruta a escala (2×2 m): llamadas al servidor del robot y modo "seguir la EVA" ─────────────────────────
+async function robotFetch(path, { method = 'GET', body, base = resolveCameraBase(), fetchImpl = globalThis.fetch, timeoutMs = 4000 } = {}) {
+  if (!base) return { ok: false, error: 'not_configured' };
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetchImpl(`${base}${path}`, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: ctrl.signal,
+      cache: 'no-store',
+    });
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      /* sin JSON */
+    }
+    return res.ok ? { ok: true, data } : { ok: false, error: data?.code || `http_${res.status}`, data };
+  } catch (e) {
+    return { ok: false, error: e?.name === 'AbortError' ? 'timeout' : 'unreachable' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Estado del robot: pose estimada, cola y calibración (fwd_cm_s, turn_deg_s). */
+export const robotState = (opts) => robotFetch('/robot/state', opts);
+/** El robot está en la esquina (centro a 20 cm de cada pared) mirando al frente: reinicia la pose. */
+export const robotPoseReset = (opts) => robotFetch('/robot/pose/reset', { ...opts, method: 'POST', body: {} });
+/** Giro en sitio (+ = izquierda) y avance recto; la Raspberry rechaza lo que saldría del cuadro (409). */
+export const robotMove = (turn_deg, drive_m, opts) => robotFetch('/robot/move', { ...opts, method: 'POST', body: { turn_deg, drive_m } });
+
+// Modo "mover el robot real con la EVA": lo activa el panel de Rutas y lo ejecuta RealRobotFollower.
+let follow = { enabled: false, status: 'off', pose: null, error: null, moves: 0 };
+const followListeners = new Set();
+export const getFollow = () => follow;
+export function setFollow(patch) {
+  follow = { ...follow, ...patch };
+  followListeners.forEach((fn) => fn(follow));
+}
+export function onFollow(fn) {
+  followListeners.add(fn);
+  fn(follow);
+  return () => followListeners.delete(fn);
+}

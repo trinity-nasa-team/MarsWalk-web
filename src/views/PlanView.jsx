@@ -1,4 +1,5 @@
 // 01 · Plan — el núcleo: imagen real + capas, varias paradas y un A* exacto por tramo con radio de regreso a pie.
+import RealRobotPanel from '../components/RealRobotPanel.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import CaptureModal from '../components/CaptureModal.jsx';
 import { AstroPanel, Gauge, RobotPanel } from '../components/Gauges.jsx';
@@ -461,6 +462,7 @@ export default function PlanView({ go }) {
             </button>
           ) : (
             <>
+              {plan.legs && <RealRobotPanel t={t} habitat={plan.habitat} legs={plan.legs} />}
               <button type="button" className="btn block" disabled={!stops.length || !!busy} onClick={compute}>
                 {busy || (stops.length ? t('plan.compute') : t('plan.pick'))}
               </button>
