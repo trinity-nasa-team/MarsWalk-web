@@ -334,6 +334,7 @@ export default function HeroScene() {
         if (o.material) [].concat(o.material).forEach((m) => { m.map?.dispose(); m.bumpMap?.dispose(); m.dispose(); });
       });
       renderer.dispose();
+      renderer.forceContextLoss();
       renderer.domElement.remove();
     };
   }, []);

@@ -37,7 +37,8 @@ export default function Starfield() {
       // 15 cuadros/s bastan para la deriva lenta; en pausa si la pestaña no se ve.
       const covered = document.documentElement.dataset.theme === 'light' || !window.location.hash || window.location.hash === '#home';
       if (t - lastDraw < 66 || document.hidden || covered) {
-        if (!reduce) raf = requestAnimationFrame(draw);
+        // Con "reducir movimiento" se sigue esperando hasta poder dibujar el primer cuadro.
+        if (!reduce || covered || document.hidden || !lastDraw) raf = requestAnimationFrame(draw);
         return;
       }
       lastDraw = t;

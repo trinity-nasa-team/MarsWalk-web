@@ -112,3 +112,14 @@ describe('ciclo de la EVA', () => {
     expect(h.eva.request.kind).toBe('return');
   });
 });
+
+describe('RESET entre EVAs (regresión)', () => {
+  it('no reinicia seq: los ids de petición no se repiten entre EVAs', () => {
+    let s = run(planned(), 30);
+    const seqBefore = s.seq;
+    expect(seqBefore).toBeGreaterThan(0);
+    s = reducer(s, { type: 'RESET' });
+    expect(s.seq).toBe(seqBefore);
+    expect(s.phase).toBe('plan');
+  });
+});

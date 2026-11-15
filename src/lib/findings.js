@@ -20,7 +20,7 @@ function persist() {
   } catch {
     // cuota llena: reintenta sin fotos antiguas para no perder las notas
     try {
-      localStorage.setItem(KEY, JSON.stringify(items.map((f, i) => (i < items.length - 3 ? { ...f, photo: null } : f))));
+      localStorage.setItem(KEY, JSON.stringify(items.map((f, i) => (i >= 3 ? { ...f, photo: null } : f))));
     } catch {
       /* solo en memoria */
     }

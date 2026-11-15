@@ -57,6 +57,8 @@ export default function HabitatChat({ t, lang, telemetry, onCommand, onReply }) 
     } else setErr(r.error.code === 'rate_limited' ? t('chat.slow') : t('chat.fail'));
   };
 
+  const sendRef = useRef(send);
+  sendRef.current = send; // el dictado termina después: usar la telemetría de ese momento
   useEffect(() => () => recRef.current?.abort(), []);
 
   const listen = () => {
@@ -69,7 +71,7 @@ export default function HabitatChat({ t, lang, telemetry, onCommand, onReply }) 
     rec.lang = lang === 'es' ? 'es-MX' : 'en-US';
     rec.interimResults = false;
     rec.maxAlternatives = 1;
-    rec.onresult = (e) => send(e.results[0][0].transcript);
+    rec.onresult = (e) => sendRef.current(e.results[0][0].transcript);
     rec.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setErr(t('chat.micDenied'));
     };

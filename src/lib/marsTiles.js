@@ -53,7 +53,7 @@ export function registerMarsProtocol(maplibregl) {
   if (registered) return;
   registered = true;
   startPool();
-  maplibregl.addProtocol('mars', (params) => {
+  maplibregl.addProtocol('mars', (params, abortController) => {
     const m = params.url.match(/^mars:\/\/(\w+)\/(\d+)\/(\d+)\/(\d+)/);
     if (!m) return Promise.reject(new Error('bad mars url'));
     const [, layer, z, x, y] = m;
@@ -62,6 +62,12 @@ export function registerMarsProtocol(maplibregl) {
     return new Promise((resolve) => {
       pending.set(id, (buffer) => resolve({ data: buffer ? buffer : EMPTY_PNG.slice(0) }));
       w.postMessage({ id, layer, z: +z, x: +x, y: +y });
+      // Zoom/paneo rápido: el worker deja de procesar tiles que ya no se ven.
+      abortController?.signal.addEventListener('abort', () => {
+        pending.delete(id);
+        w.postMessage({ cancel: id });
+        resolve({ data: EMPTY_PNG.slice(0) });
+      });
     });
   });
 }

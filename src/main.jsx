@@ -6,6 +6,7 @@ import '@fontsource/jetbrains-mono/500.css';
 import './styles/tokens.css';
 import './styles/app.css';
 import App from './App.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { applyTheme, readTheme } from './lib/theme.js';
 
 applyTheme(readTheme()); // antes del primer render: sin parpadeo de tema
@@ -15,7 +16,9 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <StoreProvider>
       <RegionProvider>
-        <App />
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
       </RegionProvider>
     </StoreProvider>
   </StrictMode>,

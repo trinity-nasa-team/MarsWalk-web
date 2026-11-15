@@ -69,7 +69,11 @@ export function getTile(src, z, r, c) {
   const p = fetch(key)
     .then((res) => (res.ok ? res.blob() : null))
     .then((b) => (b ? createImageBitmap(b) : null))
-    .catch(() => null);
+    .catch(() => null)
+    .then((img) => {
+      if (!img) cache.delete(key); // un fallo momentáneo no deja el hueco toda la sesión
+      return img;
+    });
   cache.set(key, p);
   if (cache.size > MAX_CACHE) cache.delete(cache.keys().next().value);
   return p;

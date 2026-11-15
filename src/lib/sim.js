@@ -369,6 +369,7 @@ export function reducer(state, action) {
     case 'RESET':
       return {
         ...initialState(),
+        seq: state.seq, // ids de petición únicos entre EVAs: evita que una respuesta tardía o un id repetido se confunda
         leader: state.leader,
         plan: state.plan,
         timeScale: state.timeScale,
