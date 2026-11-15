@@ -2094,7 +2094,23 @@ html[data-theme='light'] .hchat-form input { background: #fff; }
 .hud-do .btn.approve { margin-top: 6px; min-height: 44px; justify-self: start; }
 
 /* Segmentación en vivo sobre la cámara del robot */
-.viewfinder canvas.vf-seg-mask { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transition: opacity 0.2s; }
+/* Marco común foto + máscara (4:3, recorta como "cover"); en modo render ocupa todo el visor */
+.vf-frame { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.viewfinder.photo-mode .vf-frame { background: #000; }
+.viewfinder.photo-mode > canvas { visibility: hidden; }
+.vf-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: vf-photo-in 0.6s ease-out; filter: contrast(1.05) saturate(1.1); }
+@keyframes vf-photo-in { from { opacity: 0; transform: scale(1.03); } to { opacity: 1; transform: none; } }
+.viewfinder canvas.vf-seg-mask { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transition: opacity 0.3s; mix-blend-mode: normal; }
+.viewfinder.photo-mode canvas.vf-seg-mask { object-fit: cover; }
+/* Barrido de escaneo: la línea baja mientras la IA procesa; al terminar, revela la máscara de arriba abajo */
+.vf-scan { position: absolute; inset: 0; pointer-events: none; }
+.vf-scan::before { content: ''; position: absolute; left: 0; right: 0; height: 2px; top: 0; background: linear-gradient(90deg, transparent, #7ef0ff, transparent); box-shadow: 0 0 18px 4px rgba(126, 240, 255, 0.55); animation: vf-scan-line 1.4s ease-in-out infinite; }
+.vf-scan.done::before { animation: vf-scan-line 0.9s ease-out 1 forwards; }
+.vf-scan.done { animation: vf-scan-fade 0.4s ease-out 0.9s forwards; }
+@keyframes vf-scan-line { from { top: 0; } to { top: 100%; } }
+@keyframes vf-scan-fade { to { opacity: 0; } }
+.viewfinder.photo-mode .vf-frame:has(.vf-scan.done) canvas.vf-seg-mask { animation: vf-mask-reveal 0.9s ease-out; }
+@keyframes vf-mask-reveal { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
 .vf-seg { position: absolute; right: 12px; top: 10px; width: 230px; padding: 10px; border-radius: 10px; background: rgba(10, 10, 12, 0.72); pointer-events: auto; display: grid; gap: 8px; font-size: 12.5px; }
 .vf-seg-head { display: flex; justify-content: space-between; gap: 6px; color: var(--white); }
 .vf-seg-head .warn { color: var(--ground-bright, #ffd28c); }
@@ -2107,3 +2123,7 @@ html[data-theme='light'] .hchat-form input { background: #fff; }
 .vf-seg-report { font-size: 11px; padding: 6px 8px; }
 .vf-seg-note { margin: 0; font-size: 11px; line-height: 1.35; color: var(--slate-400); }
 @media (max-width: 700px) { .vf-seg { width: auto; left: 12px; top: auto; bottom: 34px; } }
+
+.vf-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--white); background: #000; }
+.viewfinder:has(.vf-loading) > canvas { visibility: hidden; }
+.viewfinder.photo-mode .cross { display: none; }

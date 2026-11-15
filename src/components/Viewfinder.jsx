@@ -5,13 +5,37 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { api } from '../lib/api.js';
 import { easePan } from '../lib/ease.js';
-import { MARS_RADIUS_M, cardinal } from '../lib/geo.js';
+import { MARS_RADIUS_M, cardinal, haversine } from '../lib/geo.js';
 import { useSegmentation } from '../lib/useSegmentation.js';
 import { colorize, VISION_MODELS } from '../lib/vision.js';
 import { canDetect } from '../lib/sim.js';
 import { useRegion, useStore } from '../state/store.jsx';
 
 const EXAG = 3; // exageración vertical (se declara en pantalla)
+
+// Fotos reales de la Hazcam de Perseverance a lo largo de su recorrido (MarsWalk-v2/scripts/fetch_robot_photos.py).
+const PHOTO_BASE = '/img/robotcam';
+let photoIndex = null;
+function loadPhotos() {
+  photoIndex ??= fetch(`${PHOTO_BASE}/index.json`)
+    .then((r) => (r.ok ? r.json() : { photos: [] }))
+    .then((d) => d.photos || [])
+    .catch(() => []);
+  return photoIndex;
+}
+/** Foto más cercana a la posición [lon, lat] y su distancia en metros. */
+export function nearestPhoto(photos, pos) {
+  let best = null;
+  let bd = Infinity;
+  for (const p of photos) {
+    const d = haversine(pos, [p.lon, p.lat]);
+    if (d < bd) {
+      bd = d;
+      best = p;
+    }
+  }
+  return best ? { ...best, dist_m: bd } : null;
+}
 const HALF_CELLS = 45; // ventana de ~18 km alrededor del robot
 const MAST_M = 2; // altura de la cámara sobre el suelo (mástil)
 const RAD = Math.PI / 180;
@@ -67,8 +91,23 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
   const glRef = useRef(null);
   const maskRef = useRef(null);
   const [segModel, setSegModel] = useState('ai4mars');
+  // Fuente de la cámara: foto real más cercana (por defecto) o render 3D del relieve.
+  const [camMode, setCamMode] = useState('photo');
+  const [photos, setPhotos] = useState(null); // null = cargando
+  const photoRef = useRef(null);
+  useEffect(() => {
+    let alive = true;
+    loadPhotos().then((p) => alive && setPhotos(p));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const photo = camMode === 'photo' && robot?.pos && photos?.length ? nearestPhoto(photos, robot.pos) : null;
+  const photoMode = !!photo;
+  const photosLoading = camMode === 'photo' && photos === null;
   const [segOpacity, setSegOpacity] = useState(0.5);
-  const seg = useSegmentation(() => glRef.current, segModel);
+  // La IA solo corre sobre fotos reales: sobre el render gris los modelos no reconocen nada (todo salía «arena»).
+  const seg = useSegmentation(() => photoRef.current, photoMode ? segModel : null);
   // Imagen real (CTX + color Viking) como textura: solo existe procesada para Jezero.
   const overview = regionId === 'jezero' ? region?.ortho?.overview || null : null;
   const overviewRef = useRef(overview);
@@ -311,24 +350,39 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
 
   const heading = robot ? (robot.bearing + yaw + 360) % 360 : null;
   return (
-    <div ref={box} className="viewfinder">
-      <canvas ref={maskRef} className="vf-seg-mask" style={{ opacity: segRes ? segOpacity : 0 }} aria-hidden="true" />
+    <div ref={box} className={`viewfinder ${photoMode ? 'photo-mode' : ''}`}>
+      <div className="vf-frame">
+        {photoMode && (
+          <img key={photo.file} ref={photoRef} className="vf-photo" src={`${PHOTO_BASE}/${photo.file}`} alt={t('vis.photoAlt', { sol: photo.sol })} />
+        )}
+        <canvas ref={maskRef} className="vf-seg-mask" style={{ opacity: segRes ? segOpacity : 0 }} aria-hidden="true" />
+        {photosLoading && <div className="vf-loading caption">{t('vis.photosLoading')}</div>}
+        {photoMode && segModel && <div key={`${photo.file}:${segModel}:${segRes ? 1 : 0}`} className={`vf-scan ${segRes ? 'done' : ''}`} aria-hidden="true" />}
+      </div>
       <div className="vf-overlay">
         <div className="vf-seg">
           <div className="vf-seg-head caption">
             <span>{t('vis.live')}</span>
             {seg.status === 'loading' && <span>{t('vis.loading')}</span>}
             {seg.status === 'error' && <span className="warn">{t('vis.error')}</span>}
-            {seg.status === 'live' && segRes && <span>{t('vis.fps', { fps: (seg.fps ?? 0).toFixed(1), ms: segRes.ms })}</span>}
+            {seg.status === 'live' && segRes && (photoMode ? <span>{segRes.ms} ms</span> : <span>{t('vis.fps', { fps: (seg.fps ?? 0).toFixed(1), ms: segRes.ms })}</span>)}
+          </div>
+          <div className="chips" role="radiogroup" aria-label={t('vis.cam')}>
+            {['photo', 'render'].map((m) => (
+              <button key={m} type="button" className="chip" role="radio" aria-checked={camMode === m} aria-pressed={camMode === m} onClick={() => setCamMode(m)}>
+                {t(`vis.cam.${m}`)}
+              </button>
+            ))}
           </div>
           <div className="chips" role="radiogroup" aria-label={t('vis.model')}>
             {[null, ...VISION_MODELS].map((m) => (
-              <button key={m || 'off'} type="button" className="chip" role="radio" aria-checked={segModel === m} aria-pressed={segModel === m} onClick={() => setSegModel(m)}>
+              <button key={m || 'off'} disabled={!photoMode} type="button" className="chip" role="radio" aria-checked={segModel === m} aria-pressed={segModel === m} onClick={() => setSegModel(m)}>
                 {m === 'ai4mars' ? 'AI4Mars' : m === 's5mars' ? 'S5Mars' : t('vis.off')}
               </button>
             ))}
           </div>
-          {segModel && (
+          {!photoMode && <p className="vf-seg-note">{t('vis.renderOff')}</p>}
+          {photoMode && segModel && (
             <input className="vf-seg-opacity" type="range" min="0.1" max="1" step="0.05" value={segOpacity} aria-label={t('vis.opacity')} onChange={(e) => setSegOpacity(+e.target.value)} />
           )}
           {segRes && (
@@ -347,12 +401,17 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
               {t('vis.report')}
             </button>
           )}
-          {segModel && <p className="vf-seg-note">{t('vis.renderNote')}</p>}
+          {photoMode && segModel && <p className="vf-seg-note">{t('vis.photoNote')}</p>}
+          {photoMode && (
+            <p className="vf-seg-note">
+              {t('vis.photoCredit', { sol: photo.sol, dist: Math.round(photo.dist_m) })}
+            </p>
+          )}
         </div>
         <div className="vf-caption caption">
           <span className="blink" />
-          <span style={{ color: 'var(--white)' }}>NAVCAM · SCOUT-1</span>
-          <span className="tag sim">{t('tag.sim')}</span>
+          <span style={{ color: 'var(--white)' }}>{photoMode ? 'HAZCAM · SCOUT-1' : 'NAVCAM · SCOUT-1'}</span>
+          {photoMode ? <span className="tag verified">{t('vis.realPhoto')}</span> : <span className="tag sim">{t('tag.sim')}</span>}
         </div>
         <span className="vf-corner tl" />
         <span className="vf-corner tr" />
@@ -372,7 +431,7 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
         </div>
         <div className="vf-meta caption">
           <span>{heading != null ? `${Math.round(heading)}° ${cardinal(heading, lang)}` : '—'}</span>
-          <span>{status === 'error' ? 'NO DEM' : t('hab.vfNote')}</span>
+          <span>{photoMode ? `Perseverance · Front Hazcam · sol ${photo.sol} · NASA/JPL-Caltech` : status === 'error' ? 'NO DEM' : t('hab.vfNote')}</span>
           {sol != null && <span>{sol}</span>}
         </div>
       </div>

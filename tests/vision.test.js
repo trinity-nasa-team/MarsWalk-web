@@ -69,3 +69,20 @@ describe('visión del robot: posproceso', () => {
     }
   });
 });
+
+describe('cámara del robot: foto real más cercana', async () => {
+  const { nearestPhoto } = await import('../src/components/Viewfinder.jsx');
+  const photos = [
+    { file: 'a.jpg', lon: 77.45, lat: 18.44, sol: 13 },
+    { file: 'b.jpg', lon: 77.40, lat: 18.48, sol: 300 },
+  ];
+  it('elige la más cercana y da la distancia en metros', () => {
+    const p = nearestPhoto(photos, [77.401, 18.479]);
+    expect(p.file).toBe('b.jpg');
+    expect(p.dist_m).toBeGreaterThan(50);
+    expect(p.dist_m).toBeLessThan(200);
+  });
+  it('sin fotos → null', () => {
+    expect(nearestPhoto([], [77.4, 18.4])).toBeNull();
+  });
+});

@@ -5,6 +5,11 @@
 > panel con Apagada / AI4Mars / S5Mars, opacidad, leyenda en vivo y "Reportar al robot". Hook `useSegmentation`.
 > **Resultado medido sobre el render 3D (no es foto):** AI4Mars ≈ 100 % "arena", S5Mars ≈ 81 % "arena" → la
 > segmentación no es significativa sobre el render; el aviso de peligro salta siempre. Se etiqueta como demostrativo.
+> **Versión final (misma fecha):** la cámara del robot muestra por defecto la **foto real de Perseverance más
+> cercana** a su posición (55 fotos de la Hazcam frontal a lo largo del recorrido real, soles 13–1349, a ≤10 km del
+> aterrizaje, `public/img/robotcam/`, generadas con `MarsWalk-v2/scripts/fetch_robot_photos.py`), con transición al
+> cambiar y barrido de escaneo al segmentar. La IA **solo corre sobre fotos reales**; en "Render 3D" se apaga (sobre
+> el render gris todo salía "arena"). Ej. medido: S5Mars sobre sol 13 → roca madre 67 %, roca suelta 26 %, suelo 4 %.
 > Lo de abajo describe la primera versión (pestaña aparte) y queda como historial.
 
 ## Qué se hizo

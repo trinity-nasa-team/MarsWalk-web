@@ -5,6 +5,7 @@ import { segment, warmUp } from './vision.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** getSource(): canvas, <video> o <img>. Con <img>, segmenta una vez por foto. */
 export function useSegmentation(getSource, model) {
   const [res, setRes] = useState(null);
   const [fps, setFps] = useState(null);
@@ -27,12 +28,20 @@ export function useSegmentation(getSource, model) {
         if (alive) setStatus('error');
         return;
       }
+      let lastStill = null;
       while (alive) {
         const src = getSource();
-        if (!src || document.hidden || !(src.width || src.videoWidth)) {
+        const isImg = src?.tagName === 'IMG';
+        if (!src || document.hidden || (isImg ? !(src.complete && src.naturalWidth) : !(src.width || src.videoWidth))) {
           await sleep(200);
           continue;
         }
+        // Foto fija: se segmenta una vez por foto (no cada vuelta).
+        if (isImg && src.currentSrc === lastStill) {
+          await sleep(250);
+          continue;
+        }
+        lastStill = isImg ? src.currentSrc : null;
         try {
           const r = await segment(model, src);
           if (!alive) break;
