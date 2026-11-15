@@ -4,6 +4,7 @@
 // Se pausa con la pestaña oculta (cada espectador consume ~1.3 Mbit/s de la subida del robot).
 // Sin URL configurada no se renderiza nada.
 import { useEffect, useRef, useState } from 'react';
+import RockAI from './RockAI.jsx';
 import { createJitterBuffer, createMjpegParser, loadRotation, nextRotation, resolveCamera, saveRotation } from '../lib/camera.js';
 
 const FPS = 15; // ritmo nominal de la cámara (320×240 a 15 FPS en la Raspberry)
@@ -31,6 +32,7 @@ export default function RobotCamera({ t, variant = 'pip' }) {
   const [rotation, setRotation] = useState(() => loadRotation());
   const [expanded, setExpanded] = useState(false);
   const [info, setInfo] = useState(null); // { w, h, fps }
+  const [rockMode, setRockMode] = useState('off'); // IA de rocas: off | service (servicio local) | browser (RockSeg)
   const [imgKey, setImgKey] = useState(0); // modo <img>: cambiarla remonta el <img> para reintentar
   const rotationRef = useRef(rotation);
   rotationRef.current = rotation;
@@ -187,6 +189,7 @@ export default function RobotCamera({ t, variant = 'pip' }) {
             }}
           />
         )}
+        <RockAI mode={rockMode} sourceRef={canvasRef} t={t} />
         {status !== 'live' && (
           <div className="robot-cam-overlay" role="status">
             <b>{status === 'connecting' ? t('cam.connecting') : t('cam.nosignal')}</b>
@@ -203,6 +206,17 @@ export default function RobotCamera({ t, variant = 'pip' }) {
           {fromQuery ? ` · ${host}` : ''}
         </span>
         <span className="robot-cam-btns">
+          {canStream && (
+            <button
+              type="button"
+              className="btn"
+              aria-pressed={rockMode !== 'off'}
+              title={t('rocks.help')}
+              onClick={() => setRockMode((m) => ({ off: 'service', service: 'browser', browser: 'off' })[m])}
+            >
+              {t(`rocks.btn.${rockMode}`)}
+            </button>
+          )}
           <button type="button" className="btn" onClick={rotate} title={t('cam.rotate')}>
             ⟳ {t('cam.rotate')}
           </button>

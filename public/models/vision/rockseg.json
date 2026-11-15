@@ -1,0 +1,75 @@
+{
+ "file": "rockseg.onnx",
+ "name": "RockSeg v2 · rocas (reajustado a la cámara del robot)",
+ "size": 320,
+ "fixed_input": true,
+ "default_thr": 0.85,
+ "input": {
+  "kind": "rgb",
+  "width": 480,
+  "height": 320,
+  "mean": [
+   0.485,
+   0.456,
+   0.406
+  ],
+  "std": [
+   0.229,
+   0.224,
+   0.225
+  ],
+  "white_balance": false,
+  "standardize": false
+ },
+ "classes": [
+  "fondo",
+  "cielo",
+  "roca_chica",
+  "roca_grande"
+ ],
+ "classes_en": [
+  "background",
+  "sky",
+  "small rock",
+  "big rock"
+ ],
+ "colors": [
+  [
+   0,
+   0,
+   0
+  ],
+  [
+   230,
+   70,
+   70
+  ],
+  [
+   70,
+   220,
+   80
+  ],
+  [
+   80,
+   100,
+   255
+  ]
+ ],
+ "ignore_in_share": [
+  "cielo"
+ ],
+ "hide": [
+  "fondo",
+  "cielo"
+ ],
+ "hazards": {
+  "roca_grande": 0.15
+ },
+ "metrics": {
+  "test_miou": 0.7785,
+  "acc": 0.9584,
+  "cpu_ms_ref": 49
+ },
+ "summary": "U-Net MobileNetV2 (fp32, 26 MB). Base: rocas lunares sintéticas (Keio). Reajustado con 363 cuadros de la cámara del robot como «no roca» y destilación sobre fotos Hazcam de Marte. En cuadros de validación de la cámara: 14 % de píxeles roca con confianza ≥ 0.6 y 4 % con ≥ 0.9 (el original: 55 %).",
+ "limitations": "Experimental. Validación sobre cuadros de la misma vista del entrenamiento. Contra el pipeline Grounding DINO + SAM en fotos de Marte: precisión 0.23, recall 0.46. Puede marcar equipo de laboratorio, sombras y partes del robot como roca. Umbral recomendado 0.85 (supuesto)."
+}
