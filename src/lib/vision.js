@@ -159,3 +159,43 @@ export async function segment(id, source) {
   const shares = classShares(r.labels, meta);
   return { meta, size: S, labels: r.labels, shares, hazards: hazardsFound(shares, meta), ms: r.ms };
 }
+
+/**
+ * Regiones conexas grandes para rotular (estilo detector): baja las etiquetas a una rejilla `grid`×`grid`,
+ * une celdas vecinas de la misma clase y devuelve hasta `max` regiones con su centro (0–1) y tamaño (fracción).
+ */
+export function labelRegions(labels, size, meta, grid = 48, minShare = 0.025, max = 6) {
+  const g = new Uint8Array(grid * grid);
+  for (let y = 0; y < grid; y++) {
+    const sy = Math.min(size - 1, Math.floor(((y + 0.5) * size) / grid));
+    for (let x = 0; x < grid; x++) g[y * grid + x] = labels[sy * size + Math.min(size - 1, Math.floor(((x + 0.5) * size) / grid))];
+  }
+  const ignore = new Set((meta.ignore_in_share || []).map((c) => meta.classes.indexOf(c)));
+  const seen = new Uint8Array(grid * grid);
+  const out = [];
+  const stack = [];
+  for (let i = 0; i < g.length; i++) {
+    if (seen[i] || ignore.has(g[i])) continue;
+    const c = g[i];
+    let n = 0;
+    let sx = 0;
+    let sy = 0;
+    stack.push(i);
+    seen[i] = 1;
+    while (stack.length) {
+      const j = stack.pop();
+      const x = j % grid;
+      const y = (j - x) / grid;
+      n++;
+      sx += x;
+      sy += y;
+      if (x > 0 && !seen[j - 1] && g[j - 1] === c) (seen[j - 1] = 1), stack.push(j - 1);
+      if (x < grid - 1 && !seen[j + 1] && g[j + 1] === c) (seen[j + 1] = 1), stack.push(j + 1);
+      if (y > 0 && !seen[j - grid] && g[j - grid] === c) (seen[j - grid] = 1), stack.push(j - grid);
+      if (y < grid - 1 && !seen[j + grid] && g[j + grid] === c) (seen[j + grid] = 1), stack.push(j + grid);
+    }
+    const share = n / g.length;
+    if (share >= minShare) out.push({ id: meta.classes[c], cls: c, x: (sx / n + 0.5) / grid, y: (sy / n + 0.5) / grid, share });
+  }
+  return out.sort((a, b) => b.share - a.share).slice(0, max);
+}

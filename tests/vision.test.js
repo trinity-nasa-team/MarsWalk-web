@@ -100,3 +100,22 @@ describe('feed de video del robot', async () => {
     expect(feedPosition(0, 0, 0)).toEqual({ idx: 0, next: 0, t: 0 });
   });
 });
+
+describe('rótulos por región (estilo detector)', async () => {
+  const { labelRegions } = await import('../src/lib/vision.js');
+  it('encuentra las regiones grandes con su centro y omite las clases ignoradas', () => {
+    const m = META.ai4mars;
+    const A = m.classes.indexOf('arena');
+    const S = m.classes.indexOf('suelo');
+    const F = m.classes.indexOf('fondo');
+    const size = 8;
+    const labels = new Uint8Array(size * size).fill(F);
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 4; x++) labels[y * size + x] = y < 4 ? A : S; // mitad izquierda
+    const rs = labelRegions(labels, size, m, 8);
+    expect(rs.map((r) => r.id).sort()).toEqual(['arena', 'suelo']);
+    const arena = rs.find((r) => r.id === 'arena');
+    expect(arena.share).toBeCloseTo(0.25);
+    expect(arena.x).toBeCloseTo(0.25);
+    expect(arena.y).toBeCloseTo(0.25);
+  });
+});

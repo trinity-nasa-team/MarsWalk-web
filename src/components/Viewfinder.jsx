@@ -6,8 +6,7 @@ import * as THREE from 'three';
 import { api } from '../lib/api.js';
 import { easePan } from '../lib/ease.js';
 import { MARS_RADIUS_M, cardinal, haversine } from '../lib/geo.js';
-import { useSegmentation } from '../lib/useSegmentation.js';
-import { colorize, loadMeta, VISION_MODELS } from '../lib/vision.js';
+import { colorize, labelRegions, loadMeta, segment, VISION_MODELS, warmUp } from '../lib/vision.js';
 import { canDetect } from '../lib/sim.js';
 import { useRegion, useStore } from '../state/store.jsx';
 
@@ -19,6 +18,8 @@ const FEED_W = 768; // tamaño de los cuadros de la Hazcam (4:3)
 const FEED_H = 576;
 export const FEED_STEP_M = 60; // metros que camina el robot por cuadro del feed
 const ZOOM = 0.16; // acercamiento a lo largo de un cuadro (sensación de avance)
+const AHEAD = 4; // cuadros que la IA lleva procesados por delante del video
+const segCache = new Map(); // `${modelo}:${url}` → { res, mask, regions }
 const FADE = 0.25; // último 25 % del tramo: fundido al siguiente cuadro
 
 /** Índice (con fracción) del cuadro del feed: arranca en el cuadro más cercano al robot y avanza con lo que camina. */
@@ -165,13 +166,12 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
   const region = useRegion();
   // Segmentación semántica en tiempo real de lo que ve la cámara del robot (AI4Mars ↔ S5Mars, o apagada).
   const glRef = useRef(null);
-  const maskRef = useRef(null);
   const [segModel, setSegModel] = useState('ai4mars');
   // Fuente de la cámara: foto real más cercana (por defecto) o render 3D del relieve.
   const [camMode, setCamMode] = useState('photo');
   const [photos, setPhotos] = useState(null); // null = cargando
   const feedRef = useRef(null);
-  const feed = useRef({ start: -1, odo: 0, last: null, idx: -1 });
+  const feed = useRef({ start: -1, odo: 0, last: null, idx: -1, shown: null, pending: false });
   const [frame, setFrame] = useState(null); // cuadro visible (para el crédito)
   useEffect(() => {
     let alive = true;
@@ -192,7 +192,23 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
       f.start = nearestPhoto(photos, pos).index; // nueva EVA o salto: resincroniza con la foto más cercana
       f.odo = 0;
     } else {
-      f.odo += jump;
+      // Con la IA encendida, el video espera a la predicción: no pasa a un cuadro que aún no está procesado
+      // (la velocidad del feed se adapta a la del modelo, como en un detector en vivo).
+      const n = photos.length;
+      const prevF = f.odo / FEED_STEP_M;
+      let nextF = prevF + jump / FEED_STEP_M;
+      const model = segModelRef.current;
+      if (model) {
+        const base = Math.floor(prevF);
+        for (let k = 1; k <= 2; k++) {
+          if (!segCache.has(`${model}:${photos[(f.start + base + k) % n].url}`)) {
+            nextF = Math.min(nextF, base + k - FADE - 0.01);
+            break;
+          }
+        }
+        nextF = Math.min(nextF, base + 2.7);
+      }
+      f.odo = Math.max(prevF, nextF) * FEED_STEP_M;
     }
     f.last = pos;
   }, [photoMode, photos, robot?.pos]);
@@ -225,9 +241,45 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
         ctx.globalAlpha = alpha;
         ctx.drawImage(im, (FEED_W - w) / 2, (FEED_H - h) * 0.6, w, h); // se acerca hacia el horizonte
       };
+      const fade = tt > 1 - FADE ? (tt - (1 - FADE)) / FADE : 0;
       put(a, 1 + ZOOM * tt, 1);
-      if (tt > 1 - FADE) put(b, 1, (tt - (1 - FADE)) / FADE);
+      if (fade) put(b, 1, fade);
+      // Predicción de la IA: una por foto (calculada por adelantado), dibujada con la MISMA transformación que la
+      // foto → máscara y rótulos van pegados a la imagen, sin retraso.
+      const model = segModelRef.current;
+      const ea = model ? segCache.get(`${model}:${photos[idx].url}`) : null;
+      const eb = model ? segCache.get(`${model}:${photos[next].url}`) : null;
+      const op = opacityRef.current;
+      if (ea?.mask) put(ea.mask, 1 + ZOOM * tt, op * (1 - fade));
+      if (fade && eb?.mask) put(eb.mask, 1, op * fade);
       ctx.globalAlpha = 1;
+      if (ea?.regions && fade < 0.5) {
+        const z = 1 + ZOOM * tt;
+        const w = FEED_W * z;
+        const h = FEED_H * z;
+        const x0 = (FEED_W - w) / 2;
+        const y0 = (FEED_H - h) * 0.6;
+        ctx.font = '600 15px system-ui, sans-serif';
+        ctx.textBaseline = 'middle';
+        for (const r of ea.regions) {
+          const text = `${nameRef.current(ea.res.meta, r.id)} ${Math.round(r.share * 100)}%`;
+          const tw = ctx.measureText(text).width + 12;
+          const x = Math.min(FEED_W * 0.6 - tw, Math.max(4, x0 + r.x * w - tw / 2)); // el panel de la IA tapa el lado derecho
+          const y = Math.min(FEED_H - 16, Math.max(40, y0 + r.y * h));
+          const [cr, cg, cb] = ea.res.meta.colors[r.cls];
+          ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+          ctx.fillRect(x, y - 11, tw, 22);
+          ctx.fillStyle = cr * 0.299 + cg * 0.587 + cb * 0.114 > 140 ? '#111' : '#fff';
+          ctx.fillText(text, x + 6, y + 1);
+        }
+      }
+      const shown = ea?.res ?? null;
+      if (shown !== f.shown || (!!model && !ea) !== f.pending) {
+        f.shown = shown;
+        f.pending = !!model && !ea;
+        setSegRes(shown);
+        setPending(f.pending);
+      }
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
@@ -235,8 +287,78 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
   const photo = photoMode && frame ? { ...frame, dist_m: haversine(robot.pos, [frame.lon, frame.lat]) } : null;
   const photosLoading = camMode === 'photo' && photos === null;
   const [segOpacity, setSegOpacity] = useState(0.5);
-  // La IA solo corre sobre fotos reales: sobre el render gris los modelos no reconocen nada (todo salía «arena»).
-  const seg = useSegmentation(() => feedRef.current, photoMode ? segModel : null);
+  const segModelRef = useRef(null);
+  const opacityRef = useRef(segOpacity);
+  const nameRef = useRef(() => '');
+  segModelRef.current = photoMode ? segModel : null;
+  opacityRef.current = segOpacity;
+  const [segRes, setSegRes] = useState(null); // predicción del cuadro visible (para la leyenda)
+  const [pending, setPending] = useState(false);
+  const [segStatus, setSegStatus] = useState('off'); // off | loading | live | error
+
+  // La IA corre solo sobre fotos reales y POR ADELANTADO: procesa el cuadro visible y los siguientes AHEAD-1
+  // antes de que aparezcan, y guarda el resultado; así la predicción nunca va detrás del video.
+  useEffect(() => {
+    if (!photoMode || !segModel) {
+      setSegStatus('off');
+      return undefined;
+    }
+    let alive = true;
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    setSegStatus('loading');
+    (async () => {
+      try {
+        await warmUp(segModel);
+      } catch {
+        if (alive) setSegStatus('error');
+        return;
+      }
+      while (alive) {
+        const f = feed.current;
+        const { idx } = feedPosition(Math.max(0, f.start), f.odo, photos.length);
+        let job = null;
+        for (let k = 0; k < AHEAD && !job; k++) {
+          const p = photos[(idx + k) % photos.length];
+          if (!segCache.has(`${segModel}:${p.url}`)) job = p;
+        }
+        if (!job || document.hidden) {
+          await sleep(120);
+          continue;
+        }
+        const key = `${segModel}:${job.url}`;
+        const im = frameImage(job.url);
+        if (!im.complete) {
+          await sleep(60);
+          continue;
+        }
+        if (!im.naturalWidth) {
+          segCache.set(key, {}); // imagen rota: no reintentar
+          continue;
+        }
+        try {
+          const r = await segment(segModel, im);
+          if (!alive) break;
+          const mask = document.createElement('canvas');
+          mask.width = r.size;
+          mask.height = r.size;
+          mask.getContext('2d').putImageData(new ImageData(colorize(r.labels, r.meta.colors), r.size, r.size), 0, 0);
+          mask.complete = true; // misma interfaz que una imagen para `put`
+          mask.naturalWidth = r.size;
+          segCache.set(key, { res: r, mask, regions: labelRegions(r.labels, r.size, r.meta) });
+          if (segCache.size > 90) segCache.delete(segCache.keys().next().value);
+          setSegStatus('live');
+        } catch (e) {
+          if (!alive) break;
+          console.warn('[vision]', e);
+          setSegStatus('error');
+          await sleep(1500);
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [photoMode, segModel, photos]);
   // Metadatos de ambos modelos para la lista desplegable y la tarjeta de métricas.
   const [metas, setMetas] = useState({});
   useEffect(() => {
@@ -472,26 +594,10 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [regionId]);
 
-  // Máscara de la IA (S×S) estirada sobre el visor.
-  useEffect(() => {
-    const cv = maskRef.current;
-    const r = seg.res;
-    if (!cv || !r) return;
-    // La IA ve el cuadro reducido a S×S; la máscara se devuelve al tamaño 4:3 del feed para que calce.
-    const tmp = document.createElement('canvas');
-    tmp.width = r.size;
-    tmp.height = r.size;
-    tmp.getContext('2d').putImageData(new ImageData(colorize(r.labels, r.meta.colors), r.size, r.size), 0, 0);
-    cv.width = FEED_W;
-    cv.height = FEED_H;
-    const c = cv.getContext('2d');
-    c.imageSmoothingEnabled = false;
-    c.drawImage(tmp, 0, 0, FEED_W, FEED_H);
-  }, [seg.res]);
   useEffect(() => () => (glRef.current = null), []);
 
-  const segRes = seg.res && seg.res.meta.id === segModel ? seg.res : null;
   const className = (m, id) => (lang === 'en' ? m.classes_en[m.classes.indexOf(id)] : t(`vis.class.${id}`));
+  nameRef.current = className;
   const visible = segRes ? segRes.shares.filter((s) => s.share != null && s.share >= 0.01).sort((a, b) => b.share - a.share) : [];
   const canReport = canDetect(state);
 
@@ -500,7 +606,6 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
     <div ref={box} className={`viewfinder ${photoMode ? 'photo-mode' : ''}`}>
       <div className="vf-frame">
         {photoMode && <canvas ref={feedRef} className="vf-photo" width={FEED_W} height={FEED_H} aria-label={photo ? t('vis.photoAlt', { sol: photo.sol }) : ''} />}
-        <canvas ref={maskRef} className="vf-seg-mask" style={{ opacity: segRes ? segOpacity : 0 }} aria-hidden="true" />
         {photosLoading && <div className="vf-loading caption">{t('vis.photosLoading')}</div>}
         {photoMode && segModel && <div className="vf-scan" aria-hidden="true" />}
       </div>
@@ -508,9 +613,9 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
         <div className="vf-seg">
           <div className="vf-seg-head caption">
             <span>{t('vis.live')}</span>
-            {seg.status === 'loading' && <span>{t('vis.loading')}</span>}
-            {seg.status === 'error' && <span className="warn">{t('vis.error')}</span>}
-            {seg.status === 'live' && segRes && <span>{t('vis.fps', { fps: (seg.fps ?? 0).toFixed(1), ms: segRes.ms })}</span>}
+            {segStatus === 'loading' && <span>{t('vis.loading')}</span>}
+            {segStatus === 'error' && <span className="warn">{t('vis.error')}</span>}
+            {segStatus === 'live' && (pending || !segRes ? <span>{t('vis.processing')}</span> : <span>{t('vis.sync', { ms: segRes.ms })}</span>)}
           </div>
           <div className="chips" role="radiogroup" aria-label={t('vis.cam')}>
             {['photo', 'render'].map((m) => (

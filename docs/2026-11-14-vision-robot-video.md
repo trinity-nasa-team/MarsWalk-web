@@ -16,6 +16,11 @@
 > feed en bucle (AI4Mars ≈ 2.2 cuadros/s, S5Mars ≈ 0.7). Modelo en **lista desplegable** con mIoU e IoU de arena, y
 > tarjeta comparativa (mIoU, exactitud, IoU arena, clases, ms en vivo) con la recomendación: AI4Mars para arena,
 > S5Mars para detalle. Métricas de cada informe en su propio test: comparación orientativa.
+> **Sincronía tipo detector (misma fecha):** la IA predice **por adelantado** (cuadro visible + 3 siguientes, una
+> predicción por foto en caché) y la máscara y los **rótulos por región** (clase + %) se dibujan en el mismo canvas
+> con la misma transformación que la foto → sin retraso. Si la predicción del siguiente cuadro no está lista, el
+> video espera (la velocidad del feed se adapta al modelo). Medido en Chrome: en sincronía 40/40 muestras con
+> AI4Mars (×60 y ×120) y con S5Mars (×60). Se eliminó el hook `useSegmentation`.
 > Lo de abajo describe la primera versión (pestaña aparte) y queda como historial.
 
 ## Qué se hizo
