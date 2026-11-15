@@ -11,7 +11,7 @@ import MapView from '../components/MapView.jsx';
 import Profile from '../components/Profile.jsx';
 import RobotCamera from '../components/RobotCamera.jsx';
 import Viewfinder from '../components/Viewfinder.jsx';
-import { resolveCameraBase } from '../lib/camera.js';
+import { cameraStatus, resolveCameraBase } from '../lib/camera.js';
 import { eventText } from '../lib/i18n.js';
 import { cardinal, formatClock, formatKm } from '../lib/geo.js';
 import { canDetect, ROBOT_LEAD_M, WALKBACK_M, WALK_KMH } from '../lib/sim.js';
@@ -28,8 +28,19 @@ export default function HabitatView({ go }) {
   const mapApi = useRef(null);
   const [cap, setCap] = useState(null);
   const [tab, setTab] = useState('status');
-  const hasLiveCam = useMemo(() => !!resolveCameraBase(), []);
-  const [camSrc, setCamSrc] = useState(() => (resolveCameraBase() ? 'live' : 'sim'));
+  const camBase = useMemo(() => resolveCameraBase(), []);
+  const hasLiveCam = !!camBase;
+  const [camSrc, setCamSrc] = useState('sim');
+  const camTouched = useRef(false);
+  // Abre en la cámara real solo si responde; una URL vieja del túnel no deja la pestaña en "sin señal".
+  useEffect(() => {
+    if (!camBase) return undefined;
+    let on = true;
+    cameraStatus(camBase).then((s) => on && s.ok && s.online && !camTouched.current && setCamSrc('live'));
+    return () => {
+      on = false;
+    };
+  }, [camBase]);
   const hasPending = !!state.eva?.pending;
   // Cuando el robot propone una ruta nueva, se abre la pestaña de aprobación.
   useEffect(() => {
@@ -159,7 +170,10 @@ export default function HabitatView({ go }) {
               {hasLiveCam && (
                 <div className="cam-src" role="tablist" aria-label={t('cam.title')}>
                   {['live', 'sim'].map((k) => (
-                    <button key={k} type="button" role="tab" aria-selected={camSrc === k} className={`btn ${camSrc === k ? 'on' : ''}`} onClick={() => setCamSrc(k)}>
+                    <button key={k} type="button" role="tab" aria-selected={camSrc === k} className={`btn ${camSrc === k ? 'on' : ''}`} onClick={() => {
+                        camTouched.current = true;
+                        setCamSrc(k);
+                      }}>
                       {t(`cam.src.${k}`)}
                     </button>
                   ))}

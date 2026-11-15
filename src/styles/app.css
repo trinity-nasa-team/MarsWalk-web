@@ -2100,7 +2100,10 @@ html[data-theme='light'] .hchat-form input { background: #fff; }
 .hud-bottom .hud-do { position: static; flex: 0 1 360px; }
 .robot-cam { margin: 0; display: grid; gap: 6px; padding: 10px; border-radius: 10px; background: rgb(8 6 10 / 0.88); border: 1px solid var(--slate-800); border-left: 4px solid var(--ground-bright); color: var(--white); }
 .robot-cam.pip { width: 220px; transition: width 0.25s ease; }
-.robot-cam.pip.expanded { width: min(440px, 100%); }
+.robot-cam.pip.expanded { width: min(460px, 100%); height: 100%; grid-template-rows: auto minmax(0, 1fr) auto auto; }
+/* Agrandada: ocupa a propósito la columna izquierda completa (encima del visor); "Reducir" la regresa. */
+.hud-bottom:has(.robot-cam.expanded) { top: 14px; align-items: stretch; }
+.hud-bottom:has(.robot-cam.expanded) .hud-do { align-self: flex-end; }
 .robot-cam.full { height: 100%; grid-template-rows: auto minmax(0, 1fr) auto auto; border-radius: 0; border-width: 0 0 0 4px; }
 .robot-cam-head { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; }
 .robot-cam-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2108,10 +2111,10 @@ html[data-theme='light'] .hchat-form input { background: #fff; }
 .robot-cam-live .blink { background: #ff6b6b; }
 .robot-cam-view { position: relative; display: grid; place-items: center; min-height: 120px; background: #000; border-radius: 6px; overflow: hidden; }
 .robot-cam.pip .robot-cam-view { max-height: 300px; }
-.robot-cam.pip.expanded .robot-cam-view { max-height: 60vh; }
+.robot-cam.pip.expanded .robot-cam-view { max-height: none; }
 .robot-cam-media { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; image-rendering: auto; }
 .robot-cam.pip .robot-cam-media { max-height: 300px; }
-.robot-cam.pip.expanded .robot-cam-media { max-height: 60vh; }
+.robot-cam.pip.expanded .robot-cam-media { max-height: 100%; }
 .robot-cam.full .robot-cam-media { width: 100%; height: 100%; }
 .robot-cam-overlay { position: absolute; inset: 0; display: grid; place-content: center; gap: 4px; padding: 10px; text-align: center; font-size: 12px; background: rgb(0 0 0 / 0.6); }
 .robot-cam-overlay b { font-family: var(--font-mono); font-weight: 400; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -2126,8 +2129,15 @@ html[data-theme='light'] .hchat-form input { background: #fff; }
 .cam-src .btn { min-height: 34px; font-size: 11px; }
 .cam-src .btn.on { background: var(--white); color: var(--black); }
 html[data-theme='light'] .robot-cam { background: var(--panel); color: inherit; }
+.robot-cam-view, .robot-cam-overlay { color: #fff; }
+.robot-cam-earth { color: #9fd3ff; border-color: currentColor; }
+html[data-theme='light'] .robot-cam-btns .btn { background: var(--white); color: var(--black); }
+html[data-theme='light'] .robot-cam-live { color: #b42318; }
+html[data-theme='light'] .robot-cam-live .blink { background: #b42318; }
+html[data-theme='light'] .robot-cam-earth { color: #1d5f99; }
 @media (max-width: 900px) {
-  .hud-bottom { right: 14px; flex-wrap: wrap; }
+  .hud-bottom { right: 288px; flex-direction: column-reverse; align-items: flex-start; }
+  .hud-bottom .hud-do { flex: none; max-width: 100%; }
   .robot-cam.pip { width: 170px; }
   .robot-cam-note { display: none; }
 }

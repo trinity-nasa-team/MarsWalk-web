@@ -622,6 +622,7 @@ Object.assign(en, { 'home.suit': 'xEMU suit prototype (NASA)' });
 Object.assign(es, {
   'cam.title': 'Cámara del robot',
   'cam.real': 'REAL',
+  'cam.earth': 'TIERRA',
   'cam.live': 'EN VIVO',
   'cam.connecting': 'Conectando…',
   'cam.nosignal': 'Cámara sin señal',
@@ -637,6 +638,7 @@ Object.assign(es, {
 Object.assign(en, {
   'cam.title': 'Robot camera',
   'cam.real': 'REAL',
+  'cam.earth': 'EARTH',
   'cam.live': 'LIVE',
   'cam.connecting': 'Connecting…',
   'cam.nosignal': 'Camera offline',

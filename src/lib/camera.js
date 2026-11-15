@@ -1,34 +1,49 @@
 // Cámara REAL del prototipo del robot (Raspberry Pi + µStreamer), publicada con un túnel HTTPS.
-// La URL sale de VITE_CAMERA_URL (no es secreta: el stream es público a propósito). Vacía → sin cámara en vivo.
+// La URL sale de VITE_CAMERA_URL (no es secreta: el stream es público a propósito) o de `?cam=` en el enlace.
 // µStreamer expone /stream (MJPEG), /snapshot (JPEG) y /state (JSON).
 
 const ROTATE_KEY = 'marswalk.camera.rotate';
+// `?cam=` solo acepta túneles de Cloudflare: así un enlace no puede poner contenido ajeno con la etiqueta REAL.
+const QUERY_HOSTS = [/\.trycloudflare\.com$/i];
 
-/** Base de la cámara sin "/" final, o '' si no está configurada. */
-export function cameraBase(raw = import.meta.env.VITE_CAMERA_URL) {
-  const s = typeof raw === 'string' ? raw.trim().replace(/\/+$/, '') : '';
-  return /^https?:\/\//.test(s) ? s : '';
+/**
+ * Normaliza la base de la cámara: solo origen (sin ruta, query, # ni credenciales). '' si no es válida.
+ * `allowHttp` solo para VITE_CAMERA_URL (desarrollo en la red local); en producción el http sería contenido mixto.
+ */
+export function cameraBase(raw = import.meta.env.VITE_CAMERA_URL, { allowHttp = true, hosts = null } = {}) {
+  if (typeof raw !== 'string' || !raw.trim()) return '';
+  let u;
+  try {
+    u = new URL(raw.trim());
+  } catch {
+    return '';
+  }
+  const okProto = u.protocol === 'https:' || (allowHttp && u.protocol === 'http:');
+  if (!okProto || u.username || u.password || u.search || u.hash || (u.pathname && u.pathname !== '/')) return '';
+  if (hosts && !hosts.some((re) => re.test(u.hostname))) return '';
+  return u.origin;
 }
 
 /**
- * URL efectiva de la cámara: `?cam=<url>` en el enlace (para cambiarla al instante cuando el túnel cambia, sin
- * redesplegar) o, si no, VITE_CAMERA_URL. `?cam=off` la apaga.
+ * URL efectiva de la cámara: `?cam=<url>` (para cambiarla al instante cuando el túnel cambia, sin redesplegar;
+ * solo https y *.trycloudflare.com) o, si no, VITE_CAMERA_URL. `?cam=off` la apaga.
+ * Devuelve { base, fromQuery }.
  */
-export function resolveCameraBase(search = typeof location !== 'undefined' ? location.search : '', env = import.meta.env.VITE_CAMERA_URL) {
+export function resolveCamera(search = typeof location !== 'undefined' ? location.search : '', env = import.meta.env.VITE_CAMERA_URL) {
   const q = new URLSearchParams(search).get('cam');
-  if (q === 'off') return '';
-  return cameraBase(q) || cameraBase(env);
+  if (q === 'off') return { base: '', fromQuery: false };
+  const fromQ = cameraBase(q, { allowHttp: false, hosts: QUERY_HOSTS });
+  if (fromQ) return { base: fromQ, fromQuery: true };
+  return { base: cameraBase(env), fromQuery: false };
 }
 
-export const cameraUrls = (base = resolveCameraBase()) =>
-  base ? { stream: `${base}/stream`, snapshot: `${base}/snapshot`, state: `${base}/state` } : null;
+export const resolveCameraBase = (search, env) => resolveCamera(search, env).base;
 
 /**
  * Lee /state de µStreamer. Nunca lanza.
  * Devuelve { ok: true, online, width, height, fps } o { ok: false, error }.
- * Si el túnel no manda CORS, el fetch falla aunque el video sí se vea: por eso el video no depende de esto.
  */
-export async function cameraStatus(base = cameraBase(), { timeoutMs = 4000, fetchImpl = globalThis.fetch } = {}) {
+export async function cameraStatus(base = resolveCameraBase(), { timeoutMs = 4000, fetchImpl = globalThis.fetch } = {}) {
   if (!base) return { ok: false, error: 'not_configured' };
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -55,8 +70,9 @@ export async function cameraStatus(base = cameraBase(), { timeoutMs = 4000, fetc
 /** Rotación guardada por el visitante (0, 90, 180, 270). La cámara del prototipo está montada de lado. */
 export function loadRotation(fallback = 90) {
   try {
-    const v = Number(localStorage.getItem(ROTATE_KEY));
-    return [0, 90, 180, 270].includes(v) && localStorage.getItem(ROTATE_KEY) !== null ? v : fallback;
+    const raw = localStorage.getItem(ROTATE_KEY);
+    const v = Number(raw);
+    return raw !== null && [0, 90, 180, 270].includes(v) ? v : fallback;
   } catch {
     return fallback;
   }
@@ -73,17 +89,15 @@ export function saveRotation(deg) {
 export const nextRotation = (deg) => (deg + 90) % 360;
 
 // ── Lectura del stream MJPEG (multipart/x-mixed-replace) ─────────────────────────────────────────────────
-// µStreamer manda cada cuadro como: "--boundary\r\nContent-Type: image/jpeg\r\nContent-Length: N\r\n...\r\n\r\n<N bytes>".
-// El túnel de Cloudflare entrega los cuadros a ráfagas; por eso se leen con fetch y se reproducen a ritmo
-// constante desde un búfer (ver createJitterBuffer), en vez de un <img> que muestra las ráfagas tal cual.
+// µStreamer manda cada cuadro como: "--boundary\r\nContent-Type: image/jpeg\r\nContent-Length: N\r\nX-Timestamp: T\r\n\r\n<N bytes>".
 
-const CRLF2 = [13, 10, 13, 10];
+const MAX_BUF = 2_000_000; // un cuadro de 320×240 pesa ~10 KB; más que esto es un stream que no es MJPEG
+const MAX_HEAD = 1024;
 const decoder = new TextDecoder('latin1');
 
-function indexOfSeq(buf, seq, from = 0) {
-  outer: for (let i = from; i <= buf.length - seq.length; i++) {
-    for (let j = 0; j < seq.length; j++) if (buf[i + j] !== seq[j]) continue outer;
-    return i;
+function findHeaderEnd(buf, from) {
+  for (let i = Math.max(0, from); i <= buf.length - 4; i++) {
+    if (buf[i] === 13 && buf[i + 1] === 10 && buf[i + 2] === 13 && buf[i + 3] === 10) return i;
   }
   return -1;
 }
@@ -91,69 +105,117 @@ function indexOfSeq(buf, seq, from = 0) {
 /** Parser incremental: push(chunk) devuelve los cuadros completos [{ jpeg: Uint8Array, ts: number|null }]. */
 export function createMjpegParser() {
   let buf = new Uint8Array(0);
+  let scanFrom = 0; // dónde seguir buscando el fin de encabezado (no se re-escanea lo ya visto)
   return {
     push(chunk) {
-      const merged = new Uint8Array(buf.length + chunk.length);
-      merged.set(buf);
-      merged.set(chunk, buf.length);
-      buf = merged;
+      if (buf.length === 0) buf = chunk;
+      else {
+        const merged = new Uint8Array(buf.length + chunk.length);
+        merged.set(buf);
+        merged.set(chunk, buf.length);
+        buf = merged;
+      }
       const frames = [];
       for (;;) {
-        const h = indexOfSeq(buf, CRLF2);
-        if (h < 0) break;
-        const head = decoder.decode(buf.subarray(0, h));
+        const h = findHeaderEnd(buf, scanFrom - 3);
+        if (h < 0) {
+          scanFrom = buf.length;
+          if (buf.length > MAX_HEAD && frames.length === 0 && !/content-length/i.test(decoder.decode(buf.subarray(0, MAX_HEAD)))) {
+            // basura sin encabezados: se descarta y se resincroniza con lo que llegue
+            buf = new Uint8Array(0);
+            scanFrom = 0;
+          }
+          break;
+        }
+        const head = decoder.decode(buf.subarray(Math.max(0, h - MAX_HEAD), h));
         const len = /content-length:\s*(\d+)/i.exec(head);
         if (!len) {
-          buf = buf.subarray(h + 4); // encabezado sin tamaño (p. ej. el inicio): se descarta
+          buf = buf.subarray(h + 4); // encabezado sin tamaño (p. ej. el inicio del multipart): se descarta
+          scanFrom = 0;
           continue;
         }
         const n = Number(len[1]);
-        if (buf.length < h + 4 + n) break; // cuadro incompleto: esperar más datos
+        if (buf.length < h + 4 + n) {
+          scanFrom = h; // cuadro incompleto: esperar más datos sin volver a buscar el encabezado
+          break;
+        }
         const ts = /x-timestamp:\s*([\d.]+)/i.exec(head);
-        frames.push({ jpeg: buf.slice(h + 4, h + 4 + n), ts: ts ? Number(ts[1]) : null });
+        frames.push({ jpeg: buf.subarray(h + 4, h + 4 + n), ts: ts ? Number(ts[1]) : null });
         buf = buf.subarray(h + 4 + n);
+        scanFrom = 0;
       }
-      if (buf.length > 4_000_000) buf = new Uint8Array(0); // protección ante un stream corrupto
+      if (buf.length > MAX_BUF) {
+        buf = new Uint8Array(0);
+        scanFrom = 0;
+      }
       return frames;
     },
   };
 }
 
 /**
- * Búfer de suavizado. Junta cuadros que llegan a ráfagas y los entrega a ritmo fijo.
- * - Espera a tener `startFrames` antes de empezar (≈ delayMs a fps).
- * - Si el búfer crece de más (la red se adelantó), descarta los viejos para no acumular retraso.
- * - Si se vacía, repite el último cuadro (no hay pantalla negra) y vuelve a juntar.
+ * Búfer de suavizado guiado por el reloj de la cámara (X-Timestamp de µStreamer).
+ * - Junta `delayMs` de video antes de empezar a reproducir.
+ * - Muestra cada cuadro cuando le toca según su marca de tiempo: respeta el ritmo real de la cámara aunque
+ *   baje de 15 FPS con poca luz (no se vacía y rellena a tirones).
+ * - Si la red se adelanta y el búfer pasa de `maxDelayMs`, descarta lo viejo (no acumula retraso).
+ * - Si se vacía, mantiene el último cuadro y vuelve a juntar.
+ * Los cuadros sin marca de tiempo se reproducen a `fps` nominal.
  */
 export function createJitterBuffer({ fps = 15, delayMs = 600, maxDelayMs = 1500 } = {}) {
-  const startFrames = Math.max(1, Math.round((delayMs / 1000) * fps));
-  const maxFrames = Math.max(startFrames + 1, Math.round((maxDelayMs / 1000) * fps));
-  const q = [];
+  const q = []; // [{ f: cuadro, t: segundos en el reloj de la cámara }]
+  const nominal = 1 / fps;
   let playing = false;
-  let stats = { received: 0, shown: 0, dropped: 0, stalls: 0 };
+  let t0 = 0; // reloj local (ms) del ancla
+  let ts0 = 0; // reloj de la cámara (s) del ancla
+  let lastT = null; // último tiempo asignado (para cuadros sin marca)
+  const stats = { received: 0, shown: 0, dropped: 0, stalls: 0 };
+  const span = () => (q.length < 2 ? 0 : (q[q.length - 1].t - q[0].t) * 1000);
   return {
-    intervalMs: 1000 / fps,
+    intervalMs: Math.min(1000 / fps, 33),
     push(frame) {
-      q.push(frame);
+      let t = frame.ts != null ? frame.ts : lastT != null ? lastT + nominal : 0;
+      // Reloj de la cámara que retrocede o salta mucho (reinicio de µStreamer): se vuelve a anclar.
+      if (lastT != null && (t < lastT || t - lastT > 5)) {
+        q.length = 0;
+        playing = false;
+        if (frame.ts == null) t = 0;
+      }
+      lastT = t;
+      q.push({ f: frame, t });
       stats.received++;
-      while (q.length > maxFrames) {
+      while (q.length > 1 && span() > maxDelayMs) {
         q.shift();
         stats.dropped++;
+        playing = false; // re-anclar con lo que queda
       }
     },
-    /** Se llama cada intervalMs. Devuelve el cuadro a mostrar o null (mantener el actual). */
-    next() {
+    /** Se llama seguido (cada intervalMs). Devuelve el cuadro a mostrar ahora o null (mantener el actual). */
+    next(now = typeof performance !== 'undefined' ? performance.now() : Date.now()) {
       if (!playing) {
-        if (q.length < startFrames) return null;
+        if (q.length === 0 || (span() < delayMs && q.length < Math.ceil((delayMs / 1000) * fps))) return null;
         playing = true;
+        t0 = now;
+        ts0 = q[0].t;
       }
       if (q.length === 0) {
         playing = false;
         stats.stalls++;
         return null;
       }
-      stats.shown++;
-      return q.shift();
+      const elapsed = (now - t0) / 1000;
+      let out = null;
+      while (q.length && q[0].t - ts0 <= elapsed + 1e-9) {
+        if (out) stats.dropped++;
+        out = q.shift().f;
+      }
+      if (out) stats.shown++;
+      return out;
+    },
+    reset() {
+      q.length = 0;
+      playing = false;
+      lastT = null;
     },
     size: () => q.length,
     stats: () => ({ ...stats }),
