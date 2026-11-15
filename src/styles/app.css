@@ -2095,7 +2095,11 @@ html[data-theme='light'] .hchat-form input { background: #fff; }
 .hud-do .btn.approve { margin-top: 6px; min-height: 44px; justify-self: start; }
 
 /* Cámara REAL del robot (Raspberry Pi) — HUD (pip) y pestaña Cámara del hábitat (full) */
-.hud-bottom { position: absolute; z-index: 4; left: 14px; bottom: 14px; right: 288px; display: flex; align-items: flex-end; gap: 12px; pointer-events: none; }
+.hud-bottom { position: absolute; z-index: 4; left: 14px; bottom: 14px; right: 288px; top: 300px; display: flex; align-items: flex-end; gap: 12px; pointer-events: none; }
+/* La cámara cabe debajo del visor (arriba a la izquierda): el video se encoge, no se encima. */
+.hud-bottom .robot-cam.pip { max-height: 100%; grid-template-rows: auto minmax(0, 1fr) auto auto; }
+.hud-bottom .robot-cam.pip .robot-cam-view { min-height: 80px; max-height: 100%; }
+.hud-bottom .robot-cam.pip .robot-cam-media { max-height: 100%; }
 .hud-bottom > * { pointer-events: auto; }
 .hud-bottom .hud-do { position: static; flex: 0 1 360px; }
 .robot-cam { margin: 0; display: grid; gap: 6px; padding: 10px; border-radius: 10px; background: rgb(8 6 10 / 0.88); border: 1px solid var(--slate-800); border-left: 4px solid var(--ground-bright); color: var(--white); }
@@ -2136,7 +2140,7 @@ html[data-theme='light'] .robot-cam-live { color: #b42318; }
 html[data-theme='light'] .robot-cam-live .blink { background: #b42318; }
 html[data-theme='light'] .robot-cam-earth { color: #1d5f99; }
 @media (max-width: 900px) {
-  .hud-bottom { right: 288px; flex-direction: column-reverse; align-items: flex-start; }
+  .hud-bottom { right: 288px; flex-direction: column; align-items: flex-start; }
   .hud-bottom .hud-do { flex: none; max-width: 100%; }
   .robot-cam.pip { width: 170px; }
   .robot-cam-note { display: none; }

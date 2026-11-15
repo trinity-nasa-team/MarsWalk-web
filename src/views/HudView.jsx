@@ -216,6 +216,7 @@ export default function HudView() {
           </aside>
 
           <div className="hud-bottom">
+            <RobotCamera t={t} variant="pip" />
             <div className={`hud-do ${rad?.sep ? 'hold' : mode}`}>
               <div className="caption">{t('hud.now')}</div>
               <div className="hud-do-text">{rad?.sep ? t('hud.do.sep') : t(`hud.do.${mode}`)}</div>
@@ -225,7 +226,6 @@ export default function HudView() {
                 </button>
               )}
             </div>
-            <RobotCamera t={t} variant="pip" />
           </div>
         </section>
       </div>
