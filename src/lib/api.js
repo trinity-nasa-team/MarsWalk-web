@@ -35,6 +35,8 @@ export const api = {
   traverse: () => request(`/regions/${REGION}/traverse`),
   ortho: () => request(`/regions/${REGION}/ortho`),
   marsPois: () => request('/mars/pois').then((r) => (r.ok ? r.data : null)),
+  /** NASA DONKI resumido por el backend: SEP de 72 h (cerca de la Tierra) y CME con llegada MODELADA a Marte. */
+  spaceWeather: () => request('/mars/space-weather'),
   cell: (lat, lon, region = REGION) => request(`/regions/${region}/cell?lat=${lat}&lon=${lon}`),
   terrainMeta: (region = REGION) => request(`/regions/${region}/terrain-grid`),
   /** 016: región con relieve alrededor de cualquier punto de Marte (Jezero si cae dentro). */
