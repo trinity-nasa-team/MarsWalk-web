@@ -618,6 +618,40 @@ Object.assign(en, { 'hab.restart': 'Restart the EVA (same route)' });
 Object.assign(es, { 'home.suit': 'Prototipo de traje xEMU (NASA)' });
 Object.assign(en, { 'home.suit': 'xEMU suit prototype (NASA)' });
 
+// Cámara REAL del prototipo del robot (Raspberry Pi). No es imagen de Marte: se dice explícitamente.
+Object.assign(es, {
+  'cam.title': 'Cámara del robot',
+  'cam.real': 'REAL',
+  'cam.earth': 'TIERRA',
+  'cam.live': 'EN VIVO',
+  'cam.connecting': 'Conectando…',
+  'cam.nosignal': 'Cámara sin señal',
+  'cam.nosignal.help': 'El robot no está transmitiendo ahora. Se reintenta solo.',
+  'cam.note': 'Prototipo del robot en la Tierra (Raspberry Pi), en vivo. No es una imagen de Marte.',
+  'cam.rotate': 'Rotar',
+  'cam.expand': 'Agrandar',
+  'cam.collapse': 'Reducir',
+  'cam.smooth': 'Suavizado {ms} ms',
+  'cam.src.live': 'En vivo (real)',
+  'cam.src.sim': 'Simulada (3D)',
+});
+Object.assign(en, {
+  'cam.title': 'Robot camera',
+  'cam.real': 'REAL',
+  'cam.earth': 'EARTH',
+  'cam.live': 'LIVE',
+  'cam.connecting': 'Connecting…',
+  'cam.nosignal': 'Camera offline',
+  'cam.nosignal.help': 'The robot is not streaming right now. Retrying automatically.',
+  'cam.note': 'Robot prototype on Earth (Raspberry Pi), live. Not an image of Mars.',
+  'cam.rotate': 'Rotate',
+  'cam.expand': 'Enlarge',
+  'cam.collapse': 'Shrink',
+  'cam.smooth': 'Smoothing {ms} ms',
+  'cam.src.live': 'Live (real)',
+  'cam.src.sim': 'Simulated (3D)',
+});
+
 export const DICTS = { es, en };
 
 export function detectLang(search = '', nav = {}) {

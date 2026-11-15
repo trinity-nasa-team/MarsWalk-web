@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Gauge, RadiationReadout } from '../components/Gauges.jsx';
 import HabitatChat from '../components/HabitatChat.jsx';
+import RobotCamera from '../components/RobotCamera.jsx';
 import { useRadiation } from '../lib/radiation.js';
 import MapView from '../components/MapView.jsx';
 import { liveVitals } from '../lib/vitals.js';
@@ -214,14 +215,17 @@ export default function HudView() {
             </div>
           </aside>
 
-          <div className={`hud-do ${rad?.sep ? 'hold' : mode}`}>
-            <div className="caption">{t('hud.now')}</div>
-            <div className="hud-do-text">{rad?.sep ? t('hud.do.sep') : t(`hud.do.${mode}`)}</div>
-            {mode === 'pending' && (
-              <button type="button" className="btn approve" onClick={approve}>
-                {t('hud.approve')}
-              </button>
-            )}
+          <div className="hud-bottom">
+            <RobotCamera t={t} variant="pip" />
+            <div className={`hud-do ${rad?.sep ? 'hold' : mode}`}>
+              <div className="caption">{t('hud.now')}</div>
+              <div className="hud-do-text">{rad?.sep ? t('hud.do.sep') : t(`hud.do.${mode}`)}</div>
+              {mode === 'pending' && (
+                <button type="button" className="btn approve" onClick={approve}>
+                  {t('hud.approve')}
+                </button>
+              )}
+            </div>
           </div>
         </section>
       </div>

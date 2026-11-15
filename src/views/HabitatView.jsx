@@ -9,7 +9,9 @@ import { snapshotMap } from '../lib/findings.js';
 import { liveVitals } from '../lib/vitals.js';
 import MapView from '../components/MapView.jsx';
 import Profile from '../components/Profile.jsx';
+import RobotCamera from '../components/RobotCamera.jsx';
 import Viewfinder from '../components/Viewfinder.jsx';
+import { cameraStatus, resolveCameraBase } from '../lib/camera.js';
 import { eventText } from '../lib/i18n.js';
 import { cardinal, formatClock, formatKm } from '../lib/geo.js';
 import { canDetect, ROBOT_LEAD_M, WALKBACK_M, WALK_KMH } from '../lib/sim.js';
@@ -26,6 +28,19 @@ export default function HabitatView({ go }) {
   const mapApi = useRef(null);
   const [cap, setCap] = useState(null);
   const [tab, setTab] = useState('status');
+  const camBase = useMemo(() => resolveCameraBase(), []);
+  const hasLiveCam = !!camBase;
+  const [camSrc, setCamSrc] = useState('sim');
+  const camTouched = useRef(false);
+  // Abre en la cámara real solo si responde; una URL vieja del túnel no deja la pestaña en "sin señal".
+  useEffect(() => {
+    if (!camBase) return undefined;
+    let on = true;
+    cameraStatus(camBase).then((s) => on && s.ok && s.online && !camTouched.current && setCamSrc('live'));
+    return () => {
+      on = false;
+    };
+  }, [camBase]);
   const hasPending = !!state.eva?.pending;
   // Cuando el robot propone una ruta nueva, se abre la pestaña de aprobación.
   useEffect(() => {
@@ -151,11 +166,27 @@ export default function HabitatView({ go }) {
           )}
 
           {tab === 'camera' && (
-            <div className="tab-camera">
+            <div className={`tab-camera ${hasLiveCam ? 'with-src' : ''}`}>
+              {hasLiveCam && (
+                <div className="cam-src" role="tablist" aria-label={t('cam.title')}>
+                  {['live', 'sim'].map((k) => (
+                    <button key={k} type="button" role="tab" aria-selected={camSrc === k} className={`btn ${camSrc === k ? 'on' : ''}`} onClick={() => {
+                        camTouched.current = true;
+                        setCamSrc(k);
+                      }}>
+                      {t(`cam.src.${k}`)}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="tab-camera-view">
-                <Viewfinder regionId={state.plan.regionId} robot={d.robot} hazards={eva.hazards} route={d.aheadOfRobot} routeColor={routeColor} sol={`T+${formatClock(state.simTime_s)}`} />
+                {camSrc === 'live' ? (
+                  <RobotCamera t={t} variant="full" />
+                ) : (
+                  <Viewfinder regionId={state.plan.regionId} robot={d.robot} hazards={eva.hazards} route={d.aheadOfRobot} routeColor={routeColor} sol={`T+${formatClock(state.simTime_s)}`} />
+                )}
               </div>
-              <p className="tab-help">{t('habtab.camera.help')}</p>
+              {camSrc === 'sim' && <p className="tab-help">{t('habtab.camera.help')}</p>}
             </div>
           )}
 
