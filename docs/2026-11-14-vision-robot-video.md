@@ -1,5 +1,12 @@
 # 2026-11-14 — Visión del robot en video (AI4Mars ↔ S5Mars)
 
+> **Cambio (misma fecha):** a pedido del usuario se quitó la pestaña aparte "Visión IA" (y el video de recorrido).
+> La segmentación ahora corre **en tiempo real sobre la cámara del robot** (Hábitat → Cámara, NAVCAM · SCOUT-1):
+> panel con Apagada / AI4Mars / S5Mars, opacidad, leyenda en vivo y "Reportar al robot". Hook `useSegmentation`.
+> **Resultado medido sobre el render 3D (no es foto):** AI4Mars ≈ 100 % "arena", S5Mars ≈ 81 % "arena" → la
+> segmentación no es significativa sobre el render; el aviso de peligro salta siempre. Se etiqueta como demostrativo.
+> Lo de abajo describe la primera versión (pestaña aparte) y queda como historial.
+
 ## Qué se hizo
 - Pestaña **Hábitat → Visión IA**: segmentación de terreno **cuadro por cuadro sobre video**, en el navegador
   (onnxruntime-web 1.30.0, WASM, dentro de un Web Worker). Cambio de modelo en vivo sin detener el video.

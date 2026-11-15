@@ -9,7 +9,6 @@ import { snapshotMap } from '../lib/findings.js';
 import { liveVitals } from '../lib/vitals.js';
 import MapView from '../components/MapView.jsx';
 import Profile from '../components/Profile.jsx';
-import RobotVision from '../components/RobotVision.jsx';
 import Viewfinder from '../components/Viewfinder.jsx';
 import { eventText } from '../lib/i18n.js';
 import { cardinal, formatClock, formatKm } from '../lib/geo.js';
@@ -61,7 +60,6 @@ export default function HabitatView({ go }) {
   const TABS = [
     { id: 'status', icon: 'eva', badge: alerts || null, hot: alerts > 0 },
     { id: 'camera', icon: 'camera' },
-    { id: 'vision', icon: 'hud' },
     { id: 'leg', icon: 'plan' },
     { id: 'approval', icon: 'alert', badge: eva.pending ? '!' : null, hot: !!eva.pending },
     { id: 'log', icon: 'findings', badge: state.events.length || null },
@@ -158,13 +156,6 @@ export default function HabitatView({ go }) {
                 <Viewfinder regionId={state.plan.regionId} robot={d.robot} hazards={eva.hazards} route={d.aheadOfRobot} routeColor={routeColor} sol={`T+${formatClock(state.simTime_s)}`} />
               </div>
               <p className="tab-help">{t('habtab.camera.help')}</p>
-            </div>
-          )}
-
-          {tab === 'vision' && (
-            <div className="tab-vision">
-              <RobotVision t={t} lang={lang} canReport={canDetect(state)} onReport={() => dispatch({ type: 'ROBOT_DETECT' })} />
-              <p className="tab-help">{t('habtab.vision.help')}</p>
             </div>
           )}
 

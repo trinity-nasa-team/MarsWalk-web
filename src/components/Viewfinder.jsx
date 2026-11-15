@@ -6,6 +6,9 @@ import * as THREE from 'three';
 import { api } from '../lib/api.js';
 import { easePan } from '../lib/ease.js';
 import { MARS_RADIUS_M, cardinal } from '../lib/geo.js';
+import { useSegmentation } from '../lib/useSegmentation.js';
+import { colorize, VISION_MODELS } from '../lib/vision.js';
+import { canDetect } from '../lib/sim.js';
 import { useRegion, useStore } from '../state/store.jsx';
 
 const EXAG = 3; // exageración vertical (se declara en pantalla)
@@ -58,8 +61,14 @@ function sampler(grid) {
 
 
 export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x96d2ff, sol, regionId = 'jezero' }) {
-  const { t, lang } = useStore();
+  const { t, lang, state, dispatch } = useStore();
   const region = useRegion();
+  // Segmentación semántica en tiempo real de lo que ve la cámara del robot (AI4Mars ↔ S5Mars, o apagada).
+  const glRef = useRef(null);
+  const maskRef = useRef(null);
+  const [segModel, setSegModel] = useState('ai4mars');
+  const [segOpacity, setSegOpacity] = useState(0.5);
+  const seg = useSegmentation(() => glRef.current, segModel);
   // Imagen real (CTX + color Viking) como textura: solo existe procesada para Jezero.
   const overview = regionId === 'jezero' ? region?.ortho?.overview || null : null;
   const overviewRef = useRef(overview);
@@ -97,9 +106,11 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
       scene.background = sky;
       scene.fog = new THREE.Fog(sky, 1500, 16000);
       const camera = new THREE.PerspectiveCamera(55, 1, 1, 30000);
-      renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: false });
+      // preserveDrawingBuffer: la IA lee cada cuadro del canvas después de dibujarlo.
+      renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       el.prepend(renderer.domElement);
+      glRef.current = renderer.domElement;
       scene.add(new THREE.AmbientLight(0xffffff, 0.35));
       const sun = new THREE.DirectionalLight(0xffffff, 1.6);
       sun.position.set(-4000, 2500, -3000); // sol bajo: realza el relieve
@@ -282,10 +293,62 @@ export default function Viewfinder({ robot, hazards = [], route, routeColor = 0x
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [regionId]);
 
+  // Máscara de la IA (S×S) estirada sobre el visor.
+  useEffect(() => {
+    const cv = maskRef.current;
+    const r = seg.res;
+    if (!cv || !r) return;
+    cv.width = r.size;
+    cv.height = r.size;
+    cv.getContext('2d').putImageData(new ImageData(colorize(r.labels, r.meta.colors), r.size, r.size), 0, 0);
+  }, [seg.res]);
+  useEffect(() => () => (glRef.current = null), []);
+
+  const segRes = seg.res && seg.res.meta.id === segModel ? seg.res : null;
+  const className = (m, id) => (lang === 'en' ? m.classes_en[m.classes.indexOf(id)] : t(`vis.class.${id}`));
+  const visible = segRes ? segRes.shares.filter((s) => s.share != null && s.share >= 0.01).sort((a, b) => b.share - a.share) : [];
+  const canReport = canDetect(state);
+
   const heading = robot ? (robot.bearing + yaw + 360) % 360 : null;
   return (
     <div ref={box} className="viewfinder">
+      <canvas ref={maskRef} className="vf-seg-mask" style={{ opacity: segRes ? segOpacity : 0 }} aria-hidden="true" />
       <div className="vf-overlay">
+        <div className="vf-seg">
+          <div className="vf-seg-head caption">
+            <span>{t('vis.live')}</span>
+            {seg.status === 'loading' && <span>{t('vis.loading')}</span>}
+            {seg.status === 'error' && <span className="warn">{t('vis.error')}</span>}
+            {seg.status === 'live' && segRes && <span>{t('vis.fps', { fps: (seg.fps ?? 0).toFixed(1), ms: segRes.ms })}</span>}
+          </div>
+          <div className="chips" role="radiogroup" aria-label={t('vis.model')}>
+            {[null, ...VISION_MODELS].map((m) => (
+              <button key={m || 'off'} type="button" className="chip" role="radio" aria-checked={segModel === m} aria-pressed={segModel === m} onClick={() => setSegModel(m)}>
+                {m === 'ai4mars' ? 'AI4Mars' : m === 's5mars' ? 'S5Mars' : t('vis.off')}
+              </button>
+            ))}
+          </div>
+          {segModel && (
+            <input className="vf-seg-opacity" type="range" min="0.1" max="1" step="0.05" value={segOpacity} aria-label={t('vis.opacity')} onChange={(e) => setSegOpacity(+e.target.value)} />
+          )}
+          {segRes && (
+            <ul className="vf-seg-legend">
+              {visible.map((s) => (
+                <li key={s.id} className={segRes.hazards.some((h) => h.id === s.id) ? 'hot' : ''}>
+                  <i style={{ background: `rgb(${segRes.meta.colors[segRes.meta.classes.indexOf(s.id)].join(',')})` }} />
+                  <span>{className(segRes.meta, s.id)}</span>
+                  <b>{Math.round(s.share * 100)} %</b>
+                </li>
+              ))}
+            </ul>
+          )}
+          {segRes && segRes.hazards.length > 0 && (
+            <button type="button" className="btn vf-seg-report" disabled={!canReport} title={canReport ? '' : t('vis.reportOff')} onClick={() => dispatch({ type: 'ROBOT_DETECT' })}>
+              {t('vis.report')}
+            </button>
+          )}
+          {segModel && <p className="vf-seg-note">{t('vis.renderNote')}</p>}
+        </div>
         <div className="vf-caption caption">
           <span className="blink" />
           <span style={{ color: 'var(--white)' }}>NAVCAM · SCOUT-1</span>
