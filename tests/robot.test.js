@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { onRobotStatus, parseRobotCommand, robotAvailable, robotCommand } from '../src/lib/robot.js';
+import { onRobotStatus, parseRobotCommand, robotAvailable, robotCommand, setRobotReachable } from '../src/lib/robot.js';
 
 describe('parseRobotCommand (voz o texto → orden)', () => {
   const cases = {
@@ -7,7 +7,7 @@ describe('parseRobotCommand (voz o texto → orden)', () => {
     right: ['Gira a la derecha', 'derecha', 'da vuelta a la derecha', 'turn right', 'go right'],
     forward: ['Avanza', 'adelante', 'avanza robot', 'sigue adelante', 'go forward', 'move ahead'],
     backward: ['Retrocede', 'reversa', 'hacia atrás', 'back up', 'go backward', 'reverse'],
-    stop: ['Alto', 'alto!', 'detente', 'para', 'frena', 'stop', 'robot alto'],
+    stop: ['Alto', 'alto!', 'detente', 'para', 'frena', 'stop', 'robot alto', 'detén el robot', 'para el robot', 'stop the robot', 'okay stop', 'hey stop', 'oye robot detente'],
   };
   for (const [cmd, phrases] of Object.entries(cases)) {
     it(`reconoce ${cmd}`, () => {
@@ -17,6 +17,24 @@ describe('parseRobotCommand (voz o texto → orden)', () => {
 
   it('no mueve el robot con preguntas, frases largas ni otras órdenes', () => {
     for (const p of [
+      // por voz casi nunca hay "?"
+      'puedo seguir adelante',
+      'qué hay a la izquierda',
+      'A la izquierda está el cráter',
+      'a la derecha de la ruta',
+      'what is to the left',
+      'what is ahead',
+      'Show me what is ahead',
+      'Gracias, sigue',
+      'Back to the map',
+      'go back home',
+      // negaciones
+      'no gires a la izquierda',
+      "don't turn right",
+      'no te detengas',
+      // la ruta la decide el hábitat
+      'Autoriza la ruta y avanza',
+      'Adelante con la ruta',
       '¿Cuánto me falta para regresar?',
       '¿Puedo seguir adelante?',
       'Autoriza la nueva ruta',
@@ -45,6 +63,22 @@ describe('robotCommand (nunca lanza)', () => {
     expect(seen.slice(-2)).toEqual(['sending', 'done']);
   });
 
+  it('la línea de estado no muestra una respuesta vieja si llegó una orden más nueva', async () => {
+    let release;
+    const slow = vi.fn(() => new Promise((r) => (release = () => r({ ok: true, status: 200 }))));
+    const fast = vi.fn(async () => ({ ok: true, status: 200 }));
+    const seen = [];
+    const off = onRobotStatus((s) => s && seen.push(`${s.cmd}:${s.state}`));
+    const p1 = robotCommand('left', { base: 'https://abc.trycloudflare.com', fetchImpl: slow });
+    await robotCommand('forward', { base: 'https://abc.trycloudflare.com', fetchImpl: fast });
+    release();
+    await p1;
+    off();
+    const after = seen.slice(1); // el primero es el estado previo que se reenvía al suscribirse
+    expect(after.at(-1)).toBe('forward:done');
+    expect(after).not.toContain('left:done');
+  });
+
   it('rechaza órdenes desconocidas, sin URL, demasiado rápidas o con la Raspberry caída', async () => {
     const never = vi.fn();
     expect(await robotCommand('bailar', { base: 'https://abc.trycloudflare.com', fetchImpl: never })).toEqual({ ok: false, error: 'invalid_cmd' });
@@ -58,7 +92,10 @@ describe('robotCommand (nunca lanza)', () => {
     expect(await robotCommand('stop', { base: 'https://abc.trycloudflare.com', fetchImpl: down })).toEqual({ ok: false, error: 'unreachable' });
   });
 
-  it('solo hay robot si hay cámara configurada', () => {
+  it('solo hay robot si hay cámara configurada y en vivo', () => {
+    setRobotReachable(false);
+    expect(robotAvailable('', 'https://cam.example')).toBe(false);
+    setRobotReachable(true);
     expect(robotAvailable('', 'https://cam.example')).toBe(true);
     expect(robotAvailable('', '')).toBe(false);
     expect(robotAvailable('?cam=off', 'https://cam.example')).toBe(false);

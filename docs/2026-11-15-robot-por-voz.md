@@ -17,6 +17,8 @@
 
 ## Decisiones
 - Sin PIN: cualquiera que abra la web puede mover el robot (parte de la demo); seguro por los pulsos cortos y el tope.
+- El robot SOLO obedece órdenes explícitas (voz, texto, botones). La ruta simulada de la EVA nunca lo mueve: el espacio de la demo es reducido.
+- Voz del robot: botón 🎤 propio (no el del chat, que se recorre con los mensajes), siempre en inglés (en-US).
 - Sin backend en medio: el endpoint público del backend no daría más protección que la propia Raspberry.
 
 ## Pendiente

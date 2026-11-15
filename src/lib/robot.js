@@ -5,53 +5,82 @@ import { resolveCameraBase } from './camera.js';
 
 export const ROBOT_CMDS = ['forward', 'backward', 'left', 'right', 'stop'];
 
-/** Hay robot si hay cámara configurada (mismo túnel). */
-export const robotAvailable = (search, env) => !!resolveCameraBase(search, env);
+// La cámara (mismo túnel) avisa si está en vivo: sin robot en línea, el chat no "se come" mensajes.
+let reachable = false;
+export const setRobotReachable = (v) => {
+  reachable = !!v;
+};
+/** Hay robot si hay túnel configurado y la cámara está respondiendo. */
+export const robotAvailable = (search, env) => !!resolveCameraBase(search, env) && reachable;
 
 const norm = (s) =>
   s
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .replace(/[¡!.,;:]/g, ' ')
+    .replace(/[¡!¿.,;:"“”«»]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
+const P = '(?:(?:oye |hey |ok |okay |por favor |please )?(?:robot )?)'; // prefijos de cortesía
+const S = '(?: robot| por favor| please)?'; // sufijos de cortesía
+const LEFT = '(?:izquierda|izq|left)';
+const RIGHT = '(?:derecha|right)';
+const TURN = '(?:gira|girar|voltea|voltear|dobla|doblar|da vuelta|da la vuelta|vuelta|turn|rotate|go|ve|vete|move|muevete)';
+const TO = '(?: a| a la| hacia| hacia la| para la| to| to the)?';
+const reTurn = (side) => new RegExp(`^${P}(?:${TURN}${TO} )?(?:a la |to the )?${side}${S}$`);
+const reForward = new RegExp(
+  `^${P}(?:avanza|avanzar|adelante|hacia adelante|sigue adelante|sigue derecho|todo derecho|ve adelante|go forward|move forward|go straight|move ahead|forward|ahead)${S}$`,
+);
+const reBackward = new RegExp(
+  `^${P}(?:retrocede|retroceder|reversa|en reversa|hacia atras|atras|marcha atras|ve hacia atras|back up|go back|move back|go backward|move backward|backward|backwards|reverse)${S}$`,
+);
+const reStop = /\b(alto|detente|detenlo|deten|detener|frena|frenar|stop|halt)\b|^(para|parate|para el robot|para robot|robot para)$/;
+
 /**
  * Orden de voz o texto → comando del robot, o null si no es una orden.
- * Solo frases cortas e imperativas: una pregunta ("¿cuánto falta para regresar?") no mueve el robot.
+ * - "Alto" se reconoce en cualquier parte (es la orden de seguridad).
+ * - El resto, solo frases cortas e imperativas completas ("gira a la izquierda", "avanza", "turn right").
+ *   Así "qué hay a la izquierda", "gracias, sigue" o "what is ahead" (la voz casi nunca pone "?") no mueven el robot.
+ * - Negaciones ("no gires a la izquierda") y todo lo que hable de la ruta o de autorizar se deja al hábitat.
  */
 export function parseRobotCommand(text) {
-  if (typeof text !== 'string' || text.includes('?')) return null;
+  if (typeof text !== 'string') return null;
   const s = norm(text);
-  if (!s || s.split(' ').length > 7) return null;
-  if (/^(robot )?(alto|detente|deten(lo|te)?|para(te)?|frena|stop|halt)( robot)?$/.test(s)) return 'stop';
-  const turn = /\b(gira|girar|voltea|voltear|vuelta|dobla|doblar|turn|rotate|ve|vete|go|hacia|a la|to the)\b/.test(s) || s.split(' ').length <= 2;
-  if (turn && /\b(izquierda|izq|left)\b/.test(s)) return 'left';
-  if (turn && /\b(derecha|der|right)\b/.test(s)) return 'right';
-  if (/\b(retrocede|retroceder|reversa|atras|back( up)?|backward|backwards|reverse)\b/.test(s)) return 'backward';
-  if (/\b(avanza|avanzar|adelante|al frente|sigue|forward|ahead)\b/.test(s)) return 'forward';
+  if (!s || s.split(' ').length > 8) return null;
+  const negated = /^(no|nunca|don ?t|do not|never)\b/.test(s);
+  if (reStop.test(s)) return negated && !/\b(alto|stop|halt|frena)\b/.test(s) ? null : 'stop';
+  if (negated || text.includes('?') || /\b(autoriz|aprueb|aprob|confirm|approv|authori|ruta|route)/.test(s)) return null;
+  if (reTurn(LEFT).test(s)) return 'left';
+  if (reTurn(RIGHT).test(s)) return 'right';
+  if (reForward.test(s)) return 'forward';
+  if (reBackward.test(s)) return 'backward';
   return null;
 }
 
 let last = null;
+let seq = 0;
 const listeners = new Set();
 const emit = (s) => {
   last = s;
   listeners.forEach((fn) => fn(s));
 };
 
-/** Suscribirse al estado de la última orden ({ cmd, state: 'sending'|'done'|'error', error }). Devuelve cancelar. */
+/** Suscribirse al estado de la última orden ({ cmd, state: 'sending'|'done'|'error', error, heard }). Devuelve cancelar. */
 export function onRobotStatus(fn) {
   listeners.add(fn);
   fn(last);
   return () => listeners.delete(fn);
 }
 
-export async function robotCommand(cmd, { base = resolveCameraBase(), fetchImpl = globalThis.fetch, timeoutMs = 8000 } = {}) {
+/** Avisar que la voz no se entendió como orden (para mostrar qué se escuchó). */
+export const robotHeard = (heard) => emit({ cmd: null, state: 'unknown', heard, at: Date.now() });
+
+export async function robotCommand(cmd, { base = resolveCameraBase(), fetchImpl = globalThis.fetch, timeoutMs = 3000, heard = null } = {}) {
   if (!ROBOT_CMDS.includes(cmd)) return { ok: false, error: 'invalid_cmd' };
   if (!base) return { ok: false, error: 'not_configured' };
-  emit({ cmd, state: 'sending', at: Date.now() });
+  const id = ++seq;
+  emit({ cmd, state: 'sending', heard, at: Date.now() });
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   let out;
@@ -69,6 +98,6 @@ export async function robotCommand(cmd, { base = resolveCameraBase(), fetchImpl 
   } finally {
     clearTimeout(timer);
   }
-  emit({ cmd, state: out.ok ? 'done' : 'error', error: out.error ?? null, at: Date.now() });
+  if (id === seq) emit({ cmd, state: out.ok ? 'done' : 'error', error: out.error ?? null, heard, at: Date.now() }); // una orden más nueva manda
   return out;
 }

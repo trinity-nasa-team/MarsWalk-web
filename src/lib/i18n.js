@@ -662,7 +662,10 @@ Object.assign(es, {
   'robot.say.stop': 'Deteniendo el robot',
   'robot.fail': 'El robot no respondió',
   'robot.fast': 'Espera un momento',
-  'robot.hint': 'También por voz o texto en el chat: «gira a la izquierda», «avanza», «alto».',
+  'robot.hint': 'Pulsa 🎤 y di en inglés: «turn left», «turn right», «go forward», «back up», «stop».',
+  'robot.speak': 'Hablar',
+  'robot.listening': 'Escuchando…',
+  'robot.unknown': 'no es una orden; prueba «turn left» o «stop»',
 });
 Object.assign(en, {
   'robot.title': 'Move robot',
@@ -673,7 +676,10 @@ Object.assign(en, {
   'robot.say.stop': 'Stopping the robot',
   'robot.fail': 'The robot did not respond',
   'robot.fast': 'Wait a moment',
-  'robot.hint': 'Also by voice or text in the chat: “turn left”, “go forward”, “stop”.',
+  'robot.hint': 'Press 🎤 and say: “turn left”, “turn right”, “go forward”, “back up”, “stop”.',
+  'robot.speak': 'Speak',
+  'robot.listening': 'Listening…',
+  'robot.unknown': 'not a command; try “turn left” or “stop”',
 });
 
 export const DICTS = { es, en };

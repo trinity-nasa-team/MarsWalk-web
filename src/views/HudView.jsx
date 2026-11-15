@@ -79,21 +79,21 @@ export default function HudView() {
   };
   // Comando de voz/texto local (no pasa por la IA): autorizar la ruta pendiente.
   const onCommand = (text) => {
-    // Orden al robot REAL ("gira a la izquierda", "avanza", "alto"): pulso corto por el túnel de la cámara.
-    const cmd = robotAvailable() ? parseRobotCommand(text) : null;
-    if (cmd) {
-      robotCommand(cmd);
-      const msg = t(`robot.say.${cmd}`);
-      say(msg);
-      return msg;
-    }
     const s = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const yes = /(autoriz|aprueb|aprob|confirm|approv|authori[sz])/.test(s);
     const no = /\b(no|cancela|rechaz|deny|reject)\b/.test(s);
-    if (!yes || no) return null;
-    const msg = approve() ? t('chat.approved') : t('chat.nothingPending');
-    say(msg);
-    return msg;
+    // 1) Autorizar la ruta pendiente gana siempre (es la orden crítica del HUD).
+    if (yes && !no) {
+      const msg = approve() ? t('chat.approved') : t('chat.nothingPending');
+      say(msg);
+      return msg;
+    }
+    // 2) Orden al robot REAL ("turn left", "gira a la izquierda", "alto"): pulso corto por el túnel de la cámara.
+    const cmd = robotAvailable() ? parseRobotCommand(text) : null;
+    if (!cmd) return null;
+    const msg = t(`robot.say.${cmd}`);
+    robotCommand(cmd).then((r) => say(r.ok ? msg : t('robot.fail')));
+    return `${msg}…`;
   };
   const telemetry = {
     state: mode,
