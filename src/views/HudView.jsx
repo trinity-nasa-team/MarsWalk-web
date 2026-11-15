@@ -8,7 +8,7 @@ import { parseRobotCommand, robotAvailable, robotCommand } from '../lib/robot.js
 import { useRadiation } from '../lib/radiation.js';
 import MapView from '../components/MapView.jsx';
 import { liveVitals } from '../lib/vitals.js';
-import { eventText } from '../lib/i18n.js';
+import { eventText, translate } from '../lib/i18n.js';
 import { cardinal, formatKm, haversine } from '../lib/geo.js';
 import { WALKBACK_M } from '../lib/sim.js';
 import { derive } from '../state/derived.js';
@@ -65,10 +65,10 @@ export default function HudView() {
   const rangePct = d ? Math.min(100, (d.toHabitat_m / WALKBACK_M) * 100) : 0;
   const follow = d ? { center: d.astro.pos, bearing: d.astro.bearing, zoom: 13.4, recenter } : null;
   const dist = (a, b) => (a && b ? haversine(a, b) : null);
-  const say = (text) => {
+  const say = (text, sayLang = lang) => {
     if (!voice || !('speechSynthesis' in window)) return;
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = lang === 'es' ? 'es-MX' : 'en-US';
+    u.lang = sayLang === 'es' ? 'es-MX' : 'en-US';
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(u);
   };
@@ -78,21 +78,33 @@ export default function HudView() {
     return true;
   };
   // Comando de voz/texto local (no pasa por la IA): autorizar la ruta pendiente.
+  // En el chat del asistente todo va en inglés (lo que dice el usuario, la respuesta y la voz).
+  const tEn = (k, p) => translate('en', k, p);
+  const sayEn = (text) => say(text, 'en');
+  // 1) Autorizar la ruta pendiente gana siempre (es la orden crítica del HUD), dicho en cualquier idioma.
   const onCommand = (text) => {
     const s = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const yes = /(autoriz|aprueb|aprob|confirm|approv|authori[sz])/.test(s);
-    const no = /\b(no|cancela|rechaz|deny|reject)\b/.test(s);
-    // 1) Autorizar la ruta pendiente gana siempre (es la orden crítica del HUD).
-    if (yes && !no) {
-      const msg = approve() ? t('chat.approved') : t('chat.nothingPending');
-      say(msg);
-      return msg;
-    }
-    // 2) Orden al robot REAL ("turn left", "gira a la izquierda", "alto"): pulso corto por el túnel de la cámara.
+    const no = /\b(no|cancela|rechaz|deny|reject|don ?t)\b/.test(s);
+    const aboutRoute = /\b(ruta|route|it|la|esa|that|reroute)\b/.test(s) || s.trim().split(/\s+/).length <= 3;
+    if (!yes || no || !aboutRoute) return null;
+    const msg = approve() ? tEn('chat.approved') : tEn('chat.nothingPending');
+    sayEn(msg);
+    return msg;
+  };
+  // 2) Resultado del asistente (Groq): si es orden, mueve el robot REAL (pulso corto); siempre dice la respuesta.
+  //    El robot SOLO se mueve con órdenes explícitas del usuario, nunca con la ruta simulada.
+  const onAssistant = (data) => {
+    if (data.robot_cmd && robotAvailable()) {
+      robotCommand(data.robot_cmd).then((r) => sayEn(r.ok ? data.reply_en : tEn('robot.fail')));
+    } else sayEn(data.reply_en);
+  };
+  // 3) Respaldo sin asistente: reglas locales ("turn left", "gira a la izquierda", "alto").
+  const onFallback = (text) => {
     const cmd = robotAvailable() ? parseRobotCommand(text) : null;
     if (!cmd) return null;
-    const msg = t(`robot.say.${cmd}`);
-    robotCommand(cmd).then((r) => say(r.ok ? msg : t('robot.fail')));
+    const msg = tEn(`robot.say.${cmd}`);
+    robotCommand(cmd).then((r) => sayEn(r.ok ? msg : tEn('robot.fail')));
     return `${msg}…`;
   };
   const telemetry = {
@@ -213,7 +225,7 @@ export default function HudView() {
                 </ul>
               </>
             )}
-            <HabitatChat t={t} lang={lang} telemetry={telemetry} onCommand={onCommand} onReply={say} />
+            <HabitatChat t={t} lang={lang} telemetry={telemetry} onCommand={onCommand} onAssistant={onAssistant} onFallback={onFallback} onReply={say} />
             <div className="hud-tools">
               <button type="button" className="btn" aria-pressed={voice} onClick={() => setVoice((v) => !v)}>
                 {voice ? t('hud.voiceOn') : t('hud.voiceOff')}
