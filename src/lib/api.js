@@ -28,6 +28,10 @@ const ll = (p) => ({ lat: p[1], lon: p[0] });
 
 export const api = {
   habitatChat: (body) => post('/habitat/chat', body),
+  /** Asistente de voz (Groq): texto en es/en → { heard_en, kind, robot_cmd, reply_en }. */
+  assistantText: (body) => post('/assistant/text', body),
+  /** Asistente de voz: audio base64 → Whisper (traduce a inglés) → misma interpretación. */
+  assistantVoice: (body) => post('/assistant/voice', body),
   regions: () => request('/regions'),
   layers: () => request(`/regions/${REGION}/layers`),
   pois: () => request(`/regions/${REGION}/pois`),

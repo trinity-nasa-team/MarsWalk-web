@@ -670,6 +670,18 @@ Object.assign(en, {
   'robot.fail': 'The robot did not respond',
 });
 
+// Asistente de voz (Groq): estados del micrófono y errores. Las respuestas del asistente llegan siempre en inglés.
+Object.assign(es, {
+  'chat.recording': 'Escuchando… (pulsa el micrófono para terminar)',
+  'chat.noSpeech': 'No se escuchó nada. Intenta de nuevo.',
+  'chat.voiceFail': 'El asistente de voz no responde. Escribe el mensaje.',
+});
+Object.assign(en, {
+  'chat.recording': 'Listening… (press the mic to finish)',
+  'chat.noSpeech': 'No speech detected. Try again.',
+  'chat.voiceFail': 'The voice assistant is not responding. Type your message.',
+});
+
 export const DICTS = { es, en };
 
 export function detectLang(search = '', nav = {}) {
